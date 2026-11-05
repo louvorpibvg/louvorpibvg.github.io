@@ -4,8 +4,8 @@
 // =====================================================================
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_CHAVE_PUBLICA } from './config.js';
-import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=5';
-import { posicaoViolao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=5';
+import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=6';
+import { posicaoViolao, posicaoPadrao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=6';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CHAVE_PUBLICA, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'louvor-pibvg-sessao' }
@@ -285,6 +285,17 @@ window.addEventListener('hashchange', rotear);
 // Alternância Violão/Teclado dos diagramas (lembra a última escolha neste aparelho)
 let instrumento = 'violao';
 try { instrumento = localStorage.getItem('instrumento') || 'violao'; } catch { /* sem armazenamento */ }
+// Formas do violão: Padrão ou Sem pestana (lembra a escolha neste aparelho)
+let modoViolao = 'sem-pestana';
+try { modoViolao = localStorage.getItem('modoViolao') || 'sem-pestana'; } catch { /* sem armazenamento */ }
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-modo-btn]');
+  if (!b) return;
+  modoViolao = b.dataset.modoBtn;
+  try { localStorage.setItem('modoViolao', modoViolao); } catch { /* ignora */ }
+  document.querySelectorAll('[data-modo-btn]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.modoBtn === modoViolao)));
+  document.querySelectorAll('[data-modo]').forEach((x) => { x.hidden = x.dataset.modo !== modoViolao; });
+});
 document.addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-instr]');
   if (!b) return;
@@ -671,19 +682,28 @@ function acordesParaDiagrama(tom, progressao) {
 function blocoDiagramas(tom, capo, progressao) {
   const acordes = acordesParaDiagrama(tom, progressao);
   if (!acordes.length) return '';
-  const violao = acordes.map((real) => {
-    const forma = capo ? transporAcorde(real, -capo) : real;
+  const soaDe = (real) => (capo ? ` · soa ${esc(real)}` : '');
+  const fig = (nome, p, sub, nivel, facil, extra = '') => `<figure class="diag${extra}"><figcaption><strong>${esc(nome)}</strong>${sub ? `<small>${sub}</small>` : ''}</figcaption>${desenharBraco(p, nome)}<small class="nivel${facil ? ' facil' : ''}">${nivel}</small></figure>`;
+  const formas = acordes.map((real) => ({ real, forma: capo ? transporAcorde(real, -capo) : real }));
+  // Padrão: formas tradicionais, como na maioria das cifras
+  const padraoHtml = formas.map(({ real, forma }) => {
+    const p = posicaoPadrao(forma);
+    return p ? fig(forma, p, capo ? `soa ${esc(real)}` : '', p.pestana ? 'pestana' : 'aberto', !p.pestana) : '';
+  }).join('');
+  // Sem pestana: alternativa primeiro, forma original ao lado para consulta
+  const semPestanaHtml = formas.map(({ real, forma }) => {
     const p = posicaoViolao(forma);
     if (!p) return '';
-    const soa = capo ? ` · soa ${esc(real)}` : '';
-    // Com alternativa sem pestana, ela vem primeiro; a forma original fica ao lado para consulta
-    const alt = p.alternativa ? `<figure class="diag"><figcaption><strong>${esc(p.alternativa.nome)}</strong><small>no lugar de ${esc(forma)}${soa}</small></figcaption>${desenharBraco(p.alternativa, p.alternativa.nome)}<small class="nivel facil">sem pestana</small></figure>` : '';
-    return alt + `<figure class="diag${p.alternativa ? ' secundario' : ''}"><figcaption><strong>${esc(forma)}</strong>${capo ? `<small>soa ${esc(real)}</small>` : ''}</figcaption>${desenharBraco(p, forma)}<small class="nivel${p.nivel <= 1 ? ' facil' : ''}">${descricao(p)}</small></figure>`;
+    const alt = p.alternativa ? fig(p.alternativa.nome, p.alternativa, `no lugar de ${esc(forma)}${soaDe(real)}`, 'sem pestana', true) : '';
+    return alt + fig(forma, p, capo ? `soa ${esc(real)}` : '', descricao(p), p.nivel <= 1, p.alternativa ? ' secundario' : '');
   }).join('');
+  const violao = `<div class="seg seg-modo" role="group" aria-label="Formas no violão"><button type="button" data-modo-btn="padrao" aria-pressed="${modoViolao === 'padrao'}">Padrão</button><button type="button" data-modo-btn="sem-pestana" aria-pressed="${modoViolao === 'sem-pestana'}">Sem pestana</button></div>
+    <div class="grade-diag" data-modo="padrao" ${modoViolao === 'padrao' ? '' : 'hidden'}>${padraoHtml}</div>
+    <div class="grade-diag" data-modo="sem-pestana" ${modoViolao === 'sem-pestana' ? '' : 'hidden'}>${semPestanaHtml}</div>`;
   const teclado = acordes.map((a) => `<figure class="diag tecla"><figcaption><strong>${esc(a)}</strong></figcaption>${svgTeclado(a)}<small class="nivel facil">${nomesNotas(a).join(' · ')}</small></figure>`).join('');
   return `<div class="diagramas" data-diag>
     <div class="seg" role="group" aria-label="Instrumento"><button type="button" data-instr="violao" aria-pressed="${instrumento === 'violao'}">Violão${capo ? ` (capo ${capo}ª)` : ''}</button><button type="button" data-instr="teclado" aria-pressed="${instrumento === 'teclado'}">Teclado</button></div>
-    <div class="grade-diag" data-painel="violao" ${instrumento === 'violao' ? '' : 'hidden'}>${violao}</div>
+    <div data-painel="violao" ${instrumento === 'violao' ? '' : 'hidden'}>${violao}</div>
     <div class="grade-diag" data-painel="teclado" ${instrumento === 'teclado' ? '' : 'hidden'}>${teclado}</div>
   </div>`;
 }
