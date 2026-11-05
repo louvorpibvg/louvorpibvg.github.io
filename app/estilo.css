@@ -90,7 +90,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .barra a svg { width: 22px; height: 22px; }
 .barra a[aria-current="page"] { color: var(--verde-texto); background: var(--destaque-fundo); }
-@media (min-width: 900px) {
+@media (min-width: 720px) and (max-width: 1023px) {
   .barra { left: 50%; transform: translateX(-50%); max-width: 720px; border: 1px solid var(--borda); border-bottom: 0; border-radius: 16px 16px 0 0; }
 }
 
@@ -231,8 +231,8 @@ dialog .dlg-acoes { position: sticky; bottom: 0; display: flex; gap: 8px; justif
 .diag .nivel { font-size: .68rem; color: var(--alerta); margin-top: 2px; }
 .diag .nivel.facil { color: var(--texto-suave); }
 .diag.secundario { opacity: .62; border-style: dashed; }
-.dica-capo { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--verde) 12%, transparent); }
-.grade-diag:has(.tecla) { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.dica-capo { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--destaque-fundo); }
+.grade-diag[data-painel=teclado] { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
 .progressao { display: grid; gap: 6px; margin-top: 6px; }
 .progressao > div { border-left: 3px solid var(--verde); padding: 2px 0 2px 10px; }
 .progressao .secao-prog { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-suave); font-weight: 600; }
@@ -251,3 +251,58 @@ dialog .dlg-acoes { position: sticky; bottom: 0; display: flex; gap: 8px; justif
 .previa { margin: -4px 0 10px; display: grid; gap: 4px; }
 .previa small { color: var(--texto-suave); }
 .erro-texto { color: var(--erro) !important; }
+
+/* ------------------------------------------------------------------
+   Ajustes por aparelho
+   ------------------------------------------------------------------ */
+.seg-modo { margin-left: 0; }
+.diagramas .seg + [data-painel] .seg { margin-top: 0; }
+/* Rolagem suave e sem "pulo" lateral no celular */
+html { overflow-x: hidden; }
+body { overflow-x: hidden; }
+img, svg { max-width: 100%; }
+/* Toque: alvos mínimos de 44px nos resumos expansíveis */
+details > summary { min-height: 32px; display: flex; align-items: center; cursor: pointer; }
+details.cartao > summary { display: block; }
+
+/* Celulares pequenos (iPhone SE, Android compactos) */
+@media (max-width: 380px) {
+  .conteudo { padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)); }
+  .cartao { padding: 12px; }
+  .grade-diag { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .grade-diag[data-painel=teclado] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .barra a { font-size: .64rem; }
+  .posicoes .funcao { width: 64px; }
+  .grade-2 { grid-template-columns: 1fr; }
+}
+/* Tablets em pé */
+@media (min-width: 600px) {
+  .conteudo { max-width: 760px; }
+  .grade-diag { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+}
+/* Mouse: realces de passagem só onde existe ponteiro */
+@media (hover: hover) and (pointer: fine) {
+  .cartao.clicavel:hover { border-color: var(--verde); }
+  .btn:hover:not(:disabled), .chip:hover, .seg button:hover:not([aria-pressed="true"]) { background: var(--destaque-fundo); }
+  .barra a:hover { color: var(--verde-texto); }
+  .lista-escolha .opcao:hover { background: var(--destaque-fundo); }
+}
+/* Computador: menu lateral fixo e área de conteúdo mais larga */
+@media (min-width: 1024px) {
+  :root { --lateral: 232px; }
+  .barra {
+    top: 0; bottom: 0; right: auto; width: var(--lateral);
+    flex-direction: column; justify-content: flex-start; gap: 4px;
+    padding: 76px 12px 16px; border-top: 0; border-right: 1px solid var(--borda);
+  }
+  .barra a { flex: none; flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 44px; padding: 0 14px; font-size: .95rem; }
+  .topo { padding-left: 24px; z-index: 30; }
+  .conteudo { max-width: 1040px; margin-left: calc(var(--lateral) + max(0px, (100vw - var(--lateral) - 1040px) / 2)); margin-right: auto; padding: 24px 32px 48px; }
+  .conteudo.sem-barra { padding-bottom: 48px; }
+  .aviso-flutuante { bottom: 24px; left: calc(50% + var(--lateral) / 2); }
+  h1 { font-size: 1.6rem; }
+  .itens > li { padding: 16px 0; }
+  .grade-diag { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+  .campo-harmonico { max-width: 640px; }
+  dialog { width: min(640px, calc(100% - 48px)); }
+}
