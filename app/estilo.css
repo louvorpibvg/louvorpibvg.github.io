@@ -207,3 +207,12 @@ dialog .dlg-acoes { position: sticky; bottom: 0; display: flex; gap: 8px; justif
   .spinner { animation-duration: 2s; }
   .cartao.clicavel:active { transform: none; }
 }
+
+/* Lista de escolha (substitui select múltiplo, que o iPhone exibe como roleta) */
+.lista-escolha { max-height: 260px; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--borda); border-radius: 12px; background: var(--cartao); }
+.lista-escolha .opcao { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--borda); cursor: pointer; }
+.lista-escolha .opcao:first-child { border-top: 0; }
+.lista-escolha .opcao small { display: block; color: var(--texto-suave); font-size: .8rem; }
+.lista-escolha .opcao:has(input:checked) { background: var(--destaque-fundo); }
+.lista-escolha input[type=radio] { width: 20px; height: 20px; accent-color: var(--verde); flex: none; }
+.campo-harmonico strong { font-size: clamp(.7rem, 3.4vw, .92rem); overflow-wrap: anywhere; }
