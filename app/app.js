@@ -4,7 +4,7 @@
 // =====================================================================
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_CHAVE_PUBLICA } from './config.js';
-import { TONS, campoHarmonico, transporProgressao, tomValido } from './musica.js';
+import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo } from './musica.js?v=3';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CHAVE_PUBLICA, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'louvor-pibvg-sessao' }
@@ -285,7 +285,7 @@ window.addEventListener('hashchange', rotear);
 // ---------------------------------------------------------------------
 // Dados de programações (dia) → cultos (horário) → posições (escala)
 // ---------------------------------------------------------------------
-const SELECT_PROG = 'id,data,titulo,link_cifraclub,observacoes,cultos(id,horario,modo,observacoes,tipo_id,escala_posicoes(id,funcao_id,integrante_id,apoio,ordem),disponibilidades(integrante_id,funcao_id)),repertorio_itens(id,musica_id,ordem,tom_previsto,tom_tocado,ministro_id,observacoes)';
+const SELECT_PROG = 'id,data,titulo,link_cifraclub,observacoes,cultos(id,horario,modo,observacoes,tipo_id,escala_posicoes(id,funcao_id,integrante_id,apoio,ordem),disponibilidades(integrante_id,funcao_id)),repertorio_itens(id,musica_id,ordem,tom_previsto,tom_tocado,capo,ministro_id,observacoes)';
 function normalizar(p) {
   p.cultos = ordenar(p.cultos || [], (c) => c.horario);
   p.cultos.forEach((c) => (c.escala_posicoes = ordenar(c.escala_posicoes || [], (x) => x.ordem)));
@@ -653,9 +653,11 @@ function itemRepertorio(it, i, p, pode) {
         <div class="pequeno suave">${esc(m.artista || '')}${it.ministro_id ? ' · ' + esc(nomeIntegrante(it.ministro_id)) : ''}</div></div>
       <div class="linha" style="flex:none">${tom ? `<span class="tom" title="Tom">${esc(tom)}</span>` : '<span class="etiqueta neutra">Tom?</span>'}</div>
     </div>
+    ${it.capo && tom ? `<p class="pequeno" style="margin:6px 0 0"><span class="etiqueta">Capo na ${it.capo}ª casa · forma de ${esc(formaComCapo(tom, it.capo))}</span></p>` : ''}
     <div class="pequeno suave" style="margin-top:4px">${it.tom_previsto ? 'Previsto: ' + esc(it.tom_previsto) : ''}${it.tom_tocado ? ' · Tocado: ' + esc(it.tom_tocado) : ''}${it.observacoes ? ' · ' + esc(it.observacoes) : ''}</div>
-    ${tom ? `<details style="margin-top:6px"><summary class="pequeno">Campo harmônico de ${esc(tom)}</summary>${blocoCampo(tom)}
-      ${m.progressao ? `<p class="pequeno" style="margin:8px 0 0"><strong>Progressão:</strong> ${esc(transporProgressao(m.progressao, tom))}</p>` : ''}</details>` : ''}
+    ${tom ? `<details style="margin-top:6px"><summary class="pequeno">Campo harmônico de ${esc(tom)}${it.capo ? ' e formas com capo' : ''}</summary>${blocoCampo(tom)}
+      ${it.capo ? `<p class="pequeno" style="margin:10px 0 0"><strong>Formas no violão (capo na ${it.capo}ª casa, forma de ${esc(formaComCapo(tom, it.capo))}):</strong></p>${blocoCampo(formaComCapo(tom, it.capo))}` : ''}
+      ${m.progressao ? `<p class="pequeno" style="margin:8px 0 0"><strong>Progressão:</strong> ${esc(transporProgressao(m.progressao, tom))}${it.capo ? ' · formas: ' + esc(transporProgressao(m.progressao, formaComCapo(tom, it.capo))) : ''}</p>` : ''}</details>` : ''}
     <div class="links-externos">
       ${m.link_cifraclub ? `<a class="btn compacto" href="${esc(m.link_cifraclub)}" target="_blank" rel="noopener">Cifra</a>` : ''}
       ${m.link_youtube ? `<a class="btn compacto" href="${esc(m.link_youtube)}" target="_blank" rel="noopener">YouTube</a>` : ''}
@@ -690,6 +692,8 @@ function dlgItemRepertorio(p, it) {
       <p class="pequeno suave" style="margin:4px 0 14px">Não achou? Cadastre-a em Repertório.</p>`}
       <div class="grade-2"><label class="campo"><span>Tom previsto</span>${selectTom('tom_previsto', it?.tom_previsto)}</label>
         <label class="campo"><span>Tom tocado</span>${selectTom('tom_tocado', it?.tom_tocado)}</label></div>
+      <label class="campo"><span>Capotraste (violão)</span><select name="capo"><option value="">Sem capotraste</option>${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<option value="${n}" ${it?.capo === n ? 'selected' : ''}>${n}ª casa</option>`).join('')}</select>
+        <small>A forma dos acordes é calculada a partir do tom e da casa.</small></label>
       <label class="campo"><span>Ministro</span><select name="ministro"><option value="">—</option>${escalaveis().map((i) => `<option value="${i.id}" ${i.id === minPadrao ? 'selected' : ''}>${esc(i.nome)}</option>`).join('')}</select></label>
       <label class="campo"><span>Observações</span><input type="text" name="obs" value="${esc(it?.observacoes || '')}" maxlength="200" placeholder="Ex.: começa só voz e violão"></label>`,
     aoAbrir: (f) => {
@@ -713,7 +717,7 @@ function dlgItemRepertorio(p, it) {
       await exec(sb.from('repertorio_itens').delete().eq('id', it.id)); aviso('Música removida.'); pgProgramacao(p.id);
     } } : null,
     aoSalvar: async (f) => {
-      const dados = { tom_previsto: f.tom_previsto.value || null, tom_tocado: f.tom_tocado.value || null, ministro_id: f.ministro.value || null, observacoes: f.obs.value.trim() || null };
+      const dados = { tom_previsto: f.tom_previsto.value || null, tom_tocado: f.tom_tocado.value || null, capo: Number(f.capo.value) || null, ministro_id: f.ministro.value || null, observacoes: f.obs.value.trim() || null };
       if (it) await exec(sb.from('repertorio_itens').update(dados).eq('id', it.id));
       else {
         if (!f.musica.value) throw 'Escolha uma música da lista.';
