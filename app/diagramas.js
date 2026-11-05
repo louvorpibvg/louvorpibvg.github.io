@@ -1,7 +1,7 @@
 // Diagramas de acordes (violão e teclado) em SVG.
 // Violão: prioriza formas abertas e sem pestana (pedido do Pedro, por dor na mão).
 // Níveis: 0 = aberto · 1 = fechado sem pestana · 2 = pestana pequena · 3 = pestana completa.
-import { campoHarmonico, formaComCapo } from './musica.js?v=5';
+import { campoHarmonico, formaComCapo } from './musica.js?v=6';
 
 const NOTAS = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
 const SUST = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -75,6 +75,23 @@ function candidatos(raiz, tipo) {
   // Formas fechadas muito no alto do braço contam como mais difíceis
   for (const c of lista) if (c.nivel === 1 && maxCasa(c) > 5) { c.nivel = 2; c.alto = true; }
   return lista.sort((a, b) => a.nivel - b.nivel || maxCasa(a) - maxCasa(b));
+}
+// Modo padrão: formas tradicionais (abertas quando existem; senão pestana na casa mais baixa)
+function padrao(raiz, tipo) {
+  const cur = CURADOS[tipo + ':' + raiz];
+  if (cur && cur.nivel === 0) return cur;
+  if (tipo === 'dim') return candidatos(raiz, tipo)[0];
+  const fe = (raiz - 4 + 12) % 12, fa = (raiz - 9 + 12) % 12;
+  if (fe <= fa) {
+    const c = tipo === 'maior' ? [fe, fe + 2, fe + 2, fe + 1, fe, fe] : [fe, fe + 2, fe + 2, fe, fe, fe];
+    return { casas: c, nivel: 3, pestana: { casa: fe, de: 0, ate: 5 } };
+  }
+  const c = tipo === 'maior' ? [-1, fa, fa + 2, fa + 2, fa + 2, fa] : [-1, fa, fa + 2, fa + 2, fa + 1, fa];
+  return { casas: c, nivel: 3, pestana: { casa: fa, de: 1, ate: 5 } };
+}
+export function posicaoPadrao(nome) {
+  const a = analisarAcorde(nome);
+  return a ? padrao(a.raiz, a.tipo) : null;
 }
 export function posicaoViolao(nome) {
   const a = analisarAcorde(nome);
