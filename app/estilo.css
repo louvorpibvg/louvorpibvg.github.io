@@ -216,3 +216,38 @@ dialog .dlg-acoes { position: sticky; bottom: 0; display: flex; gap: 8px; justif
 .lista-escolha .opcao:has(input:checked) { background: var(--destaque-fundo); }
 .lista-escolha input[type=radio] { width: 20px; height: 20px; accent-color: var(--verde); flex: none; }
 .campo-harmonico strong { font-size: clamp(.7rem, 3.4vw, .92rem); overflow-wrap: anywhere; }
+
+/* Diagramas de acordes, progressões e capotraste */
+.diagramas { margin-top: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--borda); border-radius: 999px; padding: 3px; gap: 2px; margin-bottom: 8px; }
+.seg button { border: 0; background: transparent; color: var(--texto); font: 600 .85rem var(--f-texto); padding: 8px 14px; border-radius: 999px; min-height: 36px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--primario); color: var(--primario-texto); }
+.grade-diag { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.grade-diag[hidden] { display: none; }
+.diag { margin: 0; border: 1px solid var(--borda); border-radius: 10px; padding: 6px 4px 8px; text-align: center; color: var(--texto); display: flex; flex-direction: column; align-items: center; }
+.diag figcaption strong { display: block; font-size: .95rem; }
+.diag figcaption small { display: block; color: var(--texto-suave); font-size: .7rem; }
+.diag svg { max-width: 100%; height: auto; }
+.diag .nivel { font-size: .68rem; color: var(--alerta); margin-top: 2px; }
+.diag .nivel.facil { color: var(--texto-suave); }
+.diag.secundario { opacity: .62; border-style: dashed; }
+.dica-capo { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--verde) 12%, transparent); }
+.grade-diag:has(.tecla) { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.progressao { display: grid; gap: 6px; margin-top: 6px; }
+.progressao > div { border-left: 3px solid var(--verde); padding: 2px 0 2px 10px; }
+.progressao .secao-prog { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-suave); font-weight: 600; }
+.progressao .acordes { font: 600 1rem var(--f-titulo); word-spacing: .35em; overflow-wrap: anywhere; }
+.progressao small { display: block; font-size: .75rem; }
+.sugestoes-capo { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.sugestoes-capo p { flex-basis: 100%; }
+.sugestoes-capo .btn { white-space: normal; text-align: left; padding: 6px 12px; height: auto; }
+.sugestoes-capo .btn.ativo { border-color: var(--verde); background: var(--destaque-fundo); }
+.editor-prog { border: 1px solid var(--borda); border-radius: var(--raio); padding: 10px 12px 4px; margin: 0 0 14px; min-width: 0; }
+.editor-prog legend { font-weight: 600; padding: 0 4px; }
+.editor-prog textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.chip { border: 1px solid var(--borda); background: var(--cartao); color: var(--texto); border-radius: 999px; padding: 6px 12px; min-height: 36px; font: 600 .85rem var(--f-texto); cursor: pointer; }
+.chip:active { background: var(--destaque-fundo); }
+.previa { margin: -4px 0 10px; display: grid; gap: 4px; }
+.previa small { color: var(--texto-suave); }
+.erro-texto { color: var(--erro) !important; }
