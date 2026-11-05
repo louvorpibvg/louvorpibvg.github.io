@@ -45,3 +45,12 @@ export function transporProgressao(texto, tom) {
       return raiz + sufixo;
     });
 }
+
+// Forma dos acordes no violão com capotraste: tom real menos as casas do capo.
+// Ex.: Bbm com capo na 1ª casa → forma de Am.
+const FORMAS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'];
+export function formaComCapo(tom, capo) {
+  const a = analisar(tom);
+  if (!a || !capo) return tom;
+  return FORMAS[((a.idx - Number(capo)) % 12 + 12) % 12] + (a.menor ? 'm' : '');
+}
