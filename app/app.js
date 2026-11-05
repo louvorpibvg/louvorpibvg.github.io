@@ -341,12 +341,12 @@ async function pgInicio() {
     <h1>Olá, ${esc(primeiroNome)}!</h1>
     <p class="suave">${esc(PERFIS[E.eu.perfil])}</p>
     ${pendentes ? `<a class="cartao clicavel" href="#/gestao"><div class="entre"><strong>${pendentes} pedido(s) de acesso aguardando</strong><span class="etiqueta alerta">Aprovar</span></div></a>` : ''}
-    <div class="secao"><h2>Minhas próximas escalas</h2></div>
+    ${!minhas.length && !E.ifuncoes.some((f) => f.integrante_id === E.eu.integrante_id) ? '' : '<div class="secao"><h2>Minhas próximas escalas</h2></div>'}
     ${minhas.length ? minhas.map(({ p, m }) => `
       <a class="cartao clicavel" href="#/programacao/${p.id}">
         <div class="entre"><span class="data-grande">${dataBR(p.data)}</span><span class="etiqueta">${esc([...new Set(m.map((x) => x.f))].join(', '))}</span></div>
         <p class="suave pequeno" style="margin:4px 0 0">${esc(p.titulo || '')} · ${horarios([...new Set(m.map((x) => x.c))])}</p>
-      </a>`).join('') : '<div class="cartao vazio">Você não está em nenhuma escala futura.</div>'}
+      </a>`).join('') : (E.ifuncoes.some((f) => f.integrante_id === E.eu.integrante_id) ? '<div class="cartao vazio">Você não está em nenhuma escala futura.</div>' : '')}
     ${proxima ? `<div class="secao"><h2>Próxima programação</h2></div>
       <a class="cartao clicavel" href="#/programacao/${proxima.id}">
         <div class="entre"><span class="data-grande">${dataBR(proxima.data)}</span>${vagasAbertas(proxima) ? `<span class="etiqueta alerta">${vagasAbertas(proxima)} vaga(s)</span>` : ''}</div>
@@ -684,24 +684,30 @@ function dlgItemRepertorio(p, it) {
   dialogo({
     titulo: it ? 'Editar música do dia' : 'Adicionar música',
     corpo: `${it ? `<p><strong>${esc(porId(E.musicas, it.musica_id)?.titulo)}</strong></p>` : `
-      <label class="campo"><span>Buscar música</span><input type="search" name="busca" placeholder="Título ou artista" autocomplete="off"></label>
-      <label class="campo"><span>Música</span><select name="musica" size="6" required>${E.musicas.filter((m) => m.ativa).map((m) => `<option value="${m.id}">${esc(m.titulo)}${m.artista ? ' — ' + esc(m.artista) : ''}</option>`).join('')}</select>
-        <small>Não achou? Cadastre-a em Repertório.</small></label>`}
+      <label class="campo"><span>Buscar música</span><input type="search" name="busca" placeholder="Digite o título ou artista" autocomplete="off"></label>
+      <input type="hidden" name="musica" value="">
+      <div class="lista-escolha" data-resultados role="radiogroup" aria-label="Músicas"></div>
+      <p class="pequeno suave" style="margin:4px 0 14px">Não achou? Cadastre-a em Repertório.</p>`}
       <div class="grade-2"><label class="campo"><span>Tom previsto</span>${selectTom('tom_previsto', it?.tom_previsto)}</label>
         <label class="campo"><span>Tom tocado</span>${selectTom('tom_tocado', it?.tom_tocado)}</label></div>
       <label class="campo"><span>Ministro</span><select name="ministro"><option value="">—</option>${escalaveis().map((i) => `<option value="${i.id}" ${i.id === minPadrao ? 'selected' : ''}>${esc(i.nome)}</option>`).join('')}</select></label>
       <label class="campo"><span>Observações</span><input type="text" name="obs" value="${esc(it?.observacoes || '')}" maxlength="200" placeholder="Ex.: começa só voz e violão"></label>`,
     aoAbrir: (f) => {
       if (!f.busca) return;
-      const todas = [...f.musica.options].map((o) => ({ v: o.value, t: o.textContent }));
-      f.busca.addEventListener('input', () => {
-        const q = f.busca.value.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-        f.musica.innerHTML = todas.filter((o) => o.t.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(q)).map((o) => `<option value="${o.v}">${esc(o.t)}</option>`).join('');
-      });
-      f.musica.addEventListener('change', () => {
-        const m = porId(E.musicas, f.musica.value);
+      const caixa = f.querySelector('[data-resultados]');
+      const ativas = E.musicas.filter((m) => m.ativa);
+      const desenhar = () => {
+        const q = semAcento(f.busca.value);
+        const lista = ativas.filter((m) => !q || semAcento(m.titulo + ' ' + (m.artista || '')).includes(q)).slice(0, 40);
+        caixa.innerHTML = lista.length ? lista.map((m) => `<label class="opcao"><input type="radio" name="escolha" value="${m.id}" ${f.musica.value === m.id ? 'checked' : ''}><span><strong>${esc(m.titulo)}</strong><small>${esc(m.artista || '')}${m.tom_original ? ' · ' + esc(m.tom_original) : ''}</small></span></label>`).join('') : '<p class="pequeno suave" style="padding:12px;margin:0">Nenhuma música encontrada.</p>';
+      };
+      caixa.addEventListener('change', (ev) => {
+        f.musica.value = ev.target.value;
+        const m = porId(E.musicas, ev.target.value);
         if (m?.tom_original && !f.tom_previsto.value) f.tom_previsto.value = m.tom_original;
       });
+      f.busca.addEventListener('input', desenhar);
+      desenhar();
     },
     perigo: it ? { texto: 'Remover', confirmar: 'Remover esta música do repertório do dia?', acao: async () => {
       await exec(sb.from('repertorio_itens').delete().eq('id', it.id)); aviso('Música removida.'); pgProgramacao(p.id);
