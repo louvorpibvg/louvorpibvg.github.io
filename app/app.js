@@ -4,7 +4,8 @@
 // =====================================================================
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_CHAVE_PUBLICA } from './config.js';
-import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo } from './musica.js?v=3';
+import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=5';
+import { posicaoViolao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=5';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CHAVE_PUBLICA, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'louvor-pibvg-sessao' }
@@ -281,6 +282,20 @@ async function rotear() {
   }
 }
 window.addEventListener('hashchange', rotear);
+// Alternância Violão/Teclado dos diagramas (lembra a última escolha neste aparelho)
+let instrumento = 'violao';
+try { instrumento = localStorage.getItem('instrumento') || 'violao'; } catch { /* sem armazenamento */ }
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-instr]');
+  if (!b) return;
+  instrumento = b.dataset.instr;
+  try { localStorage.setItem('instrumento', instrumento); } catch { /* ignora */ }
+  document.querySelectorAll('[data-diag]').forEach((d) => aplicarInstrumento(d));
+});
+function aplicarInstrumento(d) {
+  d.querySelectorAll('[data-instr]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.instr === instrumento)));
+  d.querySelectorAll('[data-painel]').forEach((x) => { x.hidden = x.dataset.painel !== instrumento; });
+}
 
 // ---------------------------------------------------------------------
 // Dados de programações (dia) → cultos (horário) → posições (escala)
@@ -644,6 +659,61 @@ function blocoCampo(tom) {
   const ch = campoHarmonico(tom);
   return ch.length ? `<div class="campo-harmonico" aria-label="Campo harmônico de ${esc(tom)}">${ch.map((x) => `<div><small>${x.grau}</small><strong>${esc(x.acorde)}</strong></div>`).join('')}</div>` : '';
 }
+// Acordes para os diagramas: campo harmônico + acordes da progressão fora do campo
+function acordesParaDiagrama(tom, progressao) {
+  const lista = campoHarmonico(tom).map((x) => x.acorde);
+  if (progressao) for (const a of acordesDoTexto(transporProgressao(progressao, tom))) {
+    const t = triade(a);
+    if (t && !lista.some((x) => triade(x) === t)) lista.push(t);
+  }
+  return lista;
+}
+function blocoDiagramas(tom, capo, progressao) {
+  const acordes = acordesParaDiagrama(tom, progressao);
+  if (!acordes.length) return '';
+  const violao = acordes.map((real) => {
+    const forma = capo ? transporAcorde(real, -capo) : real;
+    const p = posicaoViolao(forma);
+    if (!p) return '';
+    const soa = capo ? ` · soa ${esc(real)}` : '';
+    // Com alternativa sem pestana, ela vem primeiro; a forma original fica ao lado para consulta
+    const alt = p.alternativa ? `<figure class="diag"><figcaption><strong>${esc(p.alternativa.nome)}</strong><small>no lugar de ${esc(forma)}${soa}</small></figcaption>${desenharBraco(p.alternativa, p.alternativa.nome)}<small class="nivel facil">sem pestana</small></figure>` : '';
+    return alt + `<figure class="diag${p.alternativa ? ' secundario' : ''}"><figcaption><strong>${esc(forma)}</strong>${capo ? `<small>soa ${esc(real)}</small>` : ''}</figcaption>${desenharBraco(p, forma)}<small class="nivel${p.nivel <= 1 ? ' facil' : ''}">${descricao(p)}</small></figure>`;
+  }).join('');
+  const teclado = acordes.map((a) => `<figure class="diag tecla"><figcaption><strong>${esc(a)}</strong></figcaption>${svgTeclado(a)}<small class="nivel facil">${nomesNotas(a).join(' · ')}</small></figure>`).join('');
+  return `<div class="diagramas" data-diag>
+    <div class="seg" role="group" aria-label="Instrumento"><button type="button" data-instr="violao" aria-pressed="${instrumento === 'violao'}">Violão${capo ? ` (capo ${capo}ª)` : ''}</button><button type="button" data-instr="teclado" aria-pressed="${instrumento === 'teclado'}">Teclado</button></div>
+    <div class="grade-diag" data-painel="violao" ${instrumento === 'violao' ? '' : 'hidden'}>${violao}</div>
+    <div class="grade-diag" data-painel="teclado" ${instrumento === 'teclado' ? '' : 'hidden'}>${teclado}</div>
+  </div>`;
+}
+// Progressão em linhas (uma seção por linha), já no tom
+function blocoProgressao(progressao, tom, capo) {
+  const real = transporProgressao(progressao, tom).split(/\n/);
+  const formas = capo ? transporProgressao(progressao, formaComCapo(tom, capo)).split(/\n/) : [];
+  return `<div class="progressao">${real.map((l, i) => {
+    const k = l.indexOf(':');
+    const rot = k >= 0 ? l.slice(0, k) : '', ac = k >= 0 ? l.slice(k + 1) : l;
+    const f = formas[i] ? formas[i].slice(formas[i].indexOf(':') + 1) : '';
+    return `<div>${rot ? `<span class="secao-prog">${esc(rot.trim())}</span>` : ''}<span class="acordes">${esc(ac.trim())}</span>${capo ? `<small class="suave">forma: ${esc(f.trim())}</small>` : ''}</div>`;
+  }).join('')}</div>`;
+}
+// Sugestões de capotraste para tocar sem pestana
+function sugestoesCapo(tom, progressao, atual) {
+  if (!tom) return '';
+  const acordes = progressao ? acordesDoTexto(transporProgressao(progressao, tom)).map(triade).filter(Boolean) : [];
+  const ops = sugerirCapo(tom, [...new Set(acordes)]).slice(0, 3);
+  return ops.map((o) => `<button type="button" class="btn compacto${o.capo === (atual || 0) ? ' ativo' : ''}" data-capo-sug="${o.capo}">${o.capo ? `Capo ${o.capo}ª · forma de ${esc(o.forma)}` : `Sem capo (${esc(tom)})`}${o.dificeis.length ? ` · pestana: ${esc(o.dificeis.join(', '))}` : ''}${o.trocas.length ? ` · troque ${esc(o.trocas.join(', '))}` : ''}${!o.dificeis.length && !o.trocas.length ? ' · tudo sem pestana' : ''}</button>`).join('');
+}
+// Dica curta quando a configuração atual exige pestana e existe um capotraste que evita
+function dicaSemPestana(tom, progressao, capo) {
+  const acordes = progressao ? [...new Set(acordesDoTexto(transporProgressao(progressao, tom)).map(triade).filter(Boolean))] : [];
+  const ops = sugerirCapo(tom, acordes);
+  const atual = ops.find((o) => o.capo === (capo || 0));
+  const melhor = ops[0];
+  if (!atual || !atual.dificeis.length || melhor.capo === atual.capo || melhor.dificeis.length >= atual.dificeis.length) return '';
+  return `<p class="pequeno dica-capo">Sem pestana: ${melhor.capo ? `capo na ${melhor.capo}ª casa, forma de <strong>${esc(melhor.forma)}</strong>` : `sem capo, em <strong>${esc(tom)}</strong>`}${melhor.trocas.length ? ` (troque ${esc(melhor.trocas.join(', '))})` : ''}</p>`;
+}
 function itemRepertorio(it, i, p, pode) {
   const m = porId(E.musicas, it.musica_id) || { titulo: '(música removida)' };
   const tom = it.tom_tocado || it.tom_previsto || m.tom_original;
@@ -654,10 +724,12 @@ function itemRepertorio(it, i, p, pode) {
       <div class="linha" style="flex:none">${tom ? `<span class="tom" title="Tom">${esc(tom)}</span>` : '<span class="etiqueta neutra">Tom?</span>'}</div>
     </div>
     ${it.capo && tom ? `<p class="pequeno" style="margin:6px 0 0"><span class="etiqueta">Capo na ${it.capo}ª casa · forma de ${esc(formaComCapo(tom, it.capo))}</span></p>` : ''}
+    ${tom ? dicaSemPestana(tom, m.progressao, it.capo) : ''}
     <div class="pequeno suave" style="margin-top:4px">${it.tom_previsto ? 'Previsto: ' + esc(it.tom_previsto) : ''}${it.tom_tocado ? ' · Tocado: ' + esc(it.tom_tocado) : ''}${it.observacoes ? ' · ' + esc(it.observacoes) : ''}</div>
-    ${tom ? `<details style="margin-top:6px"><summary class="pequeno">Campo harmônico de ${esc(tom)}${it.capo ? ' e formas com capo' : ''}</summary>${blocoCampo(tom)}
+    ${tom ? `<details style="margin-top:6px"><summary class="pequeno">Campo harmônico${m.progressao ? ', progressão' : ''} e acordes</summary>${blocoCampo(tom)}
       ${it.capo ? `<p class="pequeno" style="margin:10px 0 0"><strong>Formas no violão (capo na ${it.capo}ª casa, forma de ${esc(formaComCapo(tom, it.capo))}):</strong></p>${blocoCampo(formaComCapo(tom, it.capo))}` : ''}
-      ${m.progressao ? `<p class="pequeno" style="margin:8px 0 0"><strong>Progressão:</strong> ${esc(transporProgressao(m.progressao, tom))}${it.capo ? ' · formas: ' + esc(transporProgressao(m.progressao, formaComCapo(tom, it.capo))) : ''}</p>` : ''}</details>` : ''}
+      ${m.progressao ? `<p class="pequeno" style="margin:10px 0 0"><strong>Progressão em ${esc(tom)}</strong></p>${blocoProgressao(m.progressao, tom, it.capo)}` : ''}
+      ${blocoDiagramas(tom, it.capo, m.progressao)}</details>` : ''}
     <div class="links-externos">
       ${m.link_cifraclub ? `<a class="btn compacto" href="${esc(m.link_cifraclub)}" target="_blank" rel="noopener">Cifra</a>` : ''}
       ${m.link_youtube ? `<a class="btn compacto" href="${esc(m.link_youtube)}" target="_blank" rel="noopener">YouTube</a>` : ''}
@@ -694,9 +766,19 @@ function dlgItemRepertorio(p, it) {
         <label class="campo"><span>Tom tocado</span>${selectTom('tom_tocado', it?.tom_tocado)}</label></div>
       <label class="campo"><span>Capotraste (violão)</span><select name="capo"><option value="">Sem capotraste</option>${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<option value="${n}" ${it?.capo === n ? 'selected' : ''}>${n}ª casa</option>`).join('')}</select>
         <small>A forma dos acordes é calculada a partir do tom e da casa.</small></label>
+      <div class="sugestoes-capo" data-sug-capo aria-live="polite"></div>
       <label class="campo"><span>Ministro</span><select name="ministro"><option value="">—</option>${escalaveis().map((i) => `<option value="${i.id}" ${i.id === minPadrao ? 'selected' : ''}>${esc(i.nome)}</option>`).join('')}</select></label>
       <label class="campo"><span>Observações</span><input type="text" name="obs" value="${esc(it?.observacoes || '')}" maxlength="200" placeholder="Ex.: começa só voz e violão"></label>`,
     aoAbrir: (f) => {
+      const sug = f.querySelector('[data-sug-capo]');
+      const atualizarSug = () => {
+        const m = porId(E.musicas, it?.musica_id || f.musica?.value);
+        const tom = f.tom_tocado.value || f.tom_previsto.value || m?.tom_original;
+        sug.innerHTML = tom ? `<p class="pequeno suave" style="margin:0 0 6px">Para tocar com acordes abertos (sem pestana):</p>${sugestoesCapo(tom, m?.progressao, Number(f.capo.value))}` : '';
+      };
+      sug.addEventListener('click', (ev) => { const b = ev.target.closest('[data-capo-sug]'); if (!b) return; f.capo.value = b.dataset.capoSug === '0' ? '' : b.dataset.capoSug; atualizarSug(); });
+      ['tom_tocado', 'tom_previsto', 'capo'].forEach((n) => f[n].addEventListener('change', atualizarSug));
+      atualizarSug();
       if (!f.busca) return;
       const caixa = f.querySelector('[data-resultados]');
       const ativas = E.musicas.filter((m) => m.ativa);
@@ -709,6 +791,7 @@ function dlgItemRepertorio(p, it) {
         f.musica.value = ev.target.value;
         const m = porId(E.musicas, ev.target.value);
         if (m?.tom_original && !f.tom_previsto.value) f.tom_previsto.value = m.tom_original;
+        atualizarSug();
       });
       f.busca.addEventListener('input', desenhar);
       desenhar();
@@ -794,12 +877,16 @@ async function pgMusica(id) {
       </div>
       ${m.observacoes ? `<p class="pequeno" style="margin:12px 0 0">${esc(m.observacoes)}</p>` : ''}
     </div>
-    <div class="secao"><h2>Campo harmônico</h2></div>
+    <div class="secao"><h2>Campo harmônico e acordes</h2></div>
     <div class="cartao">
-      <label class="campo" style="margin-bottom:4px"><span>Tom</span><select id="tom-ch">${TONS.map((t) => `<option ${t === tomInicial ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <div class="grade-2">
+        <label class="campo" style="margin-bottom:4px"><span>Tom</span><select id="tom-ch">${TONS.map((t) => `<option ${t === tomInicial ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <label class="campo" style="margin-bottom:4px"><span>Capotraste</span><select id="capo-ch"><option value="0">Sem capo</option>${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option value="${n}">${n}ª casa</option>`).join('')}</select></label>
+      </div>
+      <div class="sugestoes-capo" id="sug"></div>
       <div id="ch"></div>
-      ${m.progressao ? `<p class="pequeno" style="margin:12px 0 0"><strong>Progressão em graus:</strong> ${esc(m.progressao)}</p><p class="pequeno" style="margin:4px 0 0"><strong>No tom escolhido:</strong> <span id="prog"></span></p>`
-        : '<p class="pequeno suave" style="margin:12px 0 0">A progressão em graus ainda não foi cadastrada.</p>'}
+      <div id="prog"></div>
+      <div id="diag"></div>
     </div>
     <div class="secao"><h2>Histórico</h2></div>
     ${historico.length ? `<div class="cartao"><ul class="itens">${historico.map((h) => `<li class="entre"><a href="#/programacao/${h.programacoes?.id}">${dataBR(h.programacoes?.data)}</a>
@@ -807,11 +894,15 @@ async function pgMusica(id) {
       : '<div class="cartao vazio">Ainda não foi usada em nenhuma programação.</div>'}
   `, { voltar: '#/repertorio' });
   const desenharCH = () => {
-    const t = document.getElementById('tom-ch').value;
-    document.getElementById('ch').innerHTML = blocoCampo(t);
-    const pr = document.getElementById('prog'); if (pr) pr.textContent = transporProgressao(m.progressao, t);
+    const t = document.getElementById('tom-ch').value, capo = Number(document.getElementById('capo-ch').value);
+    document.getElementById('sug').innerHTML = `<p class="pequeno suave" style="margin:4px 0 6px">Sugestões para tocar sem pestana:</p>${sugestoesCapo(t, m.progressao, capo)}`;
+    document.getElementById('ch').innerHTML = blocoCampo(t) + (capo ? `<p class="pequeno" style="margin:10px 0 0"><strong>Formas com capo na ${capo}ª casa (forma de ${esc(formaComCapo(t, capo))}):</strong></p>${blocoCampo(formaComCapo(t, capo))}` : '');
+    document.getElementById('prog').innerHTML = m.progressao ? `<p class="pequeno" style="margin:12px 0 0"><strong>Progressão em ${esc(t)}</strong> <span class="suave">· graus: ${esc(m.progressao.replace(/\n/g, ' / '))}</span></p>${blocoProgressao(m.progressao, t, capo)}`
+      : `<p class="pequeno suave" style="margin:12px 0 0">A progressão ainda não foi cadastrada.${sou.lider() ? ' Toque em Editar para adicionar.' : ''}</p>`;
+    document.getElementById('diag').innerHTML = blocoDiagramas(t, capo, m.progressao);
   };
-  document.getElementById('tom-ch').onchange = desenharCH; desenharCH();
+  document.getElementById('sug').addEventListener('click', (ev) => { const b = ev.target.closest('[data-capo-sug]'); if (!b) return; document.getElementById('capo-ch').value = b.dataset.capoSug; desenharCH(); });
+  document.getElementById('tom-ch').onchange = desenharCH; document.getElementById('capo-ch').onchange = desenharCH; desenharCH();
   document.getElementById('editar')?.addEventListener('click', () => dlgMusica(m));
 }
 
@@ -826,11 +917,65 @@ function dlgMusica(m) {
       <label class="campo"><span>Link do Cifra Club</span><input type="url" name="cifra" inputmode="url" value="${esc(m?.link_cifraclub || '')}"></label>
       <label class="campo"><span>Link do YouTube</span><input type="url" name="yt" inputmode="url" value="${esc(m?.link_youtube || '')}"></label>
       <label class="campo"><span>Link do Spotify</span><input type="url" name="sp" inputmode="url" value="${esc(m?.link_spotify || '')}"></label>
-      <label class="campo"><span>Progressão em graus</span><input type="text" name="prog" value="${esc(m?.progressao || '')}" placeholder="Ex.: Verso: I – V – vi – IV | Refrão: IV – V – vi">
-        <small>Use I, ii, iii, IV, V, vi, vii° (maiúsculo = acorde maior; minúsculo = menor).</small></label>
+      <fieldset class="editor-prog">
+        <legend>Progressão de acordes</legend>
+        <div class="grade-2">
+          <label class="campo"><span>Escrever em</span><select name="modo"><option value="acordes">Acordes</option><option value="graus">Graus (I, IV, V…)</option></select></label>
+          <label class="campo" data-tom-escrita><span>Tom dos acordes</span>${selectTom('tom_escrita', m?.tom_original || '', 'Escolha o tom')}</label>
+        </div>
+        <div class="chips" data-secoes>${['Intro', 'Verso', 'Pré-refrão', 'Refrão', 'Ponte', 'Final'].map((x) => `<button type="button" class="chip" data-sec="${x}">+ ${x}</button>`).join('')}</div>
+        <div class="chips" data-acordes></div>
+        <label class="campo"><span class="sr">Progressão</span><textarea name="prog" rows="5" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="Intro: G D Em C&#10;Verso: G D/F# Em C&#10;Refrão: C D G"></textarea>
+          <small>Uma seção por linha, no formato <b>Seção: acordes</b>. Aceita 7, 7M, 4, 9, m7, ° e baixo (D/F#). Os acordes são guardados em graus, então aparecem certos em qualquer tom.</small></label>
+        <div class="previa" data-previa aria-live="polite"></div>
+      </fieldset>
       <label class="campo"><span>Observações</span><textarea name="obs" maxlength="500">${esc(m?.observacoes || '')}</textarea></label>
       <label class="linha campo"><input type="checkbox" name="ativa" ${m?.ativa === false ? '' : 'checked'}> Ativa no repertório</label>
       <label class="linha campo"><input type="checkbox" name="revisar" ${m?.revisar ? 'checked' : ''}> Marcar para revisar</label>`,
+    aoAbrir: (f) => {
+      const ta = f.prog, previa = f.querySelector('[data-previa]'), chipsAc = f.querySelector('[data-acordes]');
+      // Começa mostrando a progressão salva em acordes do tom original (ou em graus, se não houver tom)
+      if (m?.progressao) {
+        if (m.tom_original) ta.value = transporProgressao(m.progressao, m.tom_original);
+        else { f.modo.value = 'graus'; ta.value = m.progressao; }
+      }
+      const inserir = (txt) => {
+        const ini = ta.selectionStart ?? ta.value.length, fim = ta.selectionEnd ?? ta.value.length;
+        const antes = ta.value.slice(0, ini), depois = ta.value.slice(fim);
+        const sep = txt.endsWith(': ') || !antes || /\s$/.test(antes) ? '' : ' ';
+        ta.value = antes + sep + txt + depois;
+        const pos = (antes + sep + txt).length; ta.setSelectionRange(pos, pos); atualizar();
+      };
+      const atualizar = () => {
+        const graus = f.modo.value === 'graus';
+        f.querySelector('[data-tom-escrita]').hidden = graus;
+        const tomEsc = f.tom_escrita.value;
+        chipsAc.innerHTML = graus ? ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', 'bVII'].map((g) => `<button type="button" class="chip" data-ac="${g}">${g}</button>`).join('')
+          : tomEsc ? campoHarmonico(tomEsc).map((x) => `<button type="button" class="chip" data-ac="${esc(x.acorde.replace('m(b5)', '°'))}">${esc(x.acorde.replace('m(b5)', '°'))}</button>`).join('') : '<small class="suave">Escolha o tom para ver os atalhos de acordes.</small>';
+        const txt = ta.value.trim();
+        if (!txt) { previa.innerHTML = ''; return; }
+        if (graus) { previa.innerHTML = m?.tom_original || f.tom.value ? `<small>Prévia em ${esc(f.tom.value || m.tom_original)}:</small>${blocoProgressao(txt, f.tom.value || m.tom_original)}` : ''; return; }
+        if (!tomEsc) { previa.innerHTML = '<small class="erro-texto">Escolha o tom em que os acordes estão escritos.</small>'; return; }
+        const r = acordesParaGraus(txt, tomEsc);
+        previa.innerHTML = (r.desconhecidos.length ? `<small class="erro-texto">Não reconheci: ${esc(r.desconhecidos.join(', '))}</small>` : '') + `<small>Em graus: ${esc(r.texto.replace(/\n/g, ' / '))}</small>`;
+      };
+      f.querySelector('[data-secoes]').addEventListener('click', (ev) => {
+        const b = ev.target.closest('[data-sec]'); if (!b) return;
+        const quebra = ta.value && !ta.value.endsWith('\n') ? '\n' : '';
+        ta.value += quebra + b.dataset.sec + ': '; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); atualizar();
+      });
+      chipsAc.addEventListener('click', (ev) => { const b = ev.target.closest('[data-ac]'); if (b) { inserir(b.dataset.ac + ' '); ta.focus(); } });
+      f.modo.addEventListener('change', () => {
+        // Converte o texto ao trocar o modo, para não perder o que já foi digitado
+        const t = f.tom_escrita.value || f.tom.value;
+        if (ta.value.trim() && t) ta.value = f.modo.value === 'graus' ? acordesParaGraus(ta.value, t).texto : transporProgressao(ta.value, t);
+        atualizar();
+      });
+      f.tom.addEventListener('change', () => { if (!f.tom_escrita.value) f.tom_escrita.value = f.tom.value; atualizar(); });
+      f.tom_escrita.addEventListener('change', atualizar);
+      ta.addEventListener('input', atualizar);
+      atualizar();
+    },
     aoSalvar: async (f) => {
       const titulo = f.titulo.value.trim();
       if (!titulo) throw 'Informe o título.';
@@ -838,8 +983,15 @@ function dlgMusica(m) {
       if (bpm && (bpm < 30 || bpm > 250)) throw 'BPM deve estar entre 30 e 250.';
       const dados = { titulo, artista: f.artista.value.trim() || null, tom_original: f.tom.value || null, bpm,
         link_cifraclub: url(f.cifra.value), link_youtube: url(f.yt.value), link_spotify: url(f.sp.value),
-        progressao: f.prog.value.trim() || null, observacoes: f.obs.value.trim() || null, ativa: f.ativa.checked, revisar: f.revisar.checked };
+        progressao: null, observacoes: f.obs.value.trim() || null, ativa: f.ativa.checked, revisar: f.revisar.checked };
       if (dados.tom_original && !tomValido(dados.tom_original)) throw 'Tom inválido.';
+      const texto = f.prog.value.trim();
+      if (texto && f.modo.value === 'acordes') {
+        if (!f.tom_escrita.value) throw 'Escolha o tom em que a progressão foi escrita.';
+        const r = acordesParaGraus(texto, f.tom_escrita.value);
+        if (r.desconhecidos.length) throw `Não reconheci estes acordes na progressão: ${r.desconhecidos.join(', ')}`;
+        dados.progressao = r.texto;
+      } else dados.progressao = texto || null;
       const salvo = m ? await exec(sb.from('musicas').update(dados).eq('id', m.id).select().single())
         : await exec(sb.from('musicas').insert(dados).select().single());
       E.musicas = ordenar([...E.musicas.filter((x) => x.id !== salvo.id), salvo], (x) => semAcento(x.titulo));
