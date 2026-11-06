@@ -4,8 +4,9 @@
 // =====================================================================
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_CHAVE_PUBLICA } from './config.js';
-import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=6';
-import { posicaoViolao, posicaoPadrao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=6';
+import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=7';
+import { lerAcorde, descreverQualidade, notasDoAcorde, posicoesVariadas, melhorPosicao, variacoes, svgBraco, rotuloPosicao, svgTecladoAcorde } from './acordes.js?v=7';
+import { posicaoViolao, posicaoPadrao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=7';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CHAVE_PUBLICA, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'louvor-pibvg-sessao' }
@@ -84,14 +85,15 @@ const icone = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 // ---------------------------------------------------------------------
 // Diálogo genérico (formulários)
 // ---------------------------------------------------------------------
-function dialogo({ titulo, corpo, salvar = 'Salvar', perigo = null, aoSalvar, aoAbrir }) {
+function dialogo({ titulo, corpo, salvar = 'Salvar', perigo = null, aoSalvar, aoAbrir, cancelar = 'Cancelar', classe = '' }) {
   const d = document.createElement('dialog');
+  if (classe) d.className = classe;
   d.innerHTML = `<form method="dialog" novalidate>
     <div class="dlg-topo"><h2>${esc(titulo)}</h2><button type="button" class="btn btn-icone" data-fechar aria-label="Fechar">✕</button></div>
     <div class="dlg-corpo">${corpo}<div class="caixa-erro" data-erro hidden></div></div>
     <div class="dlg-acoes">
       ${perigo ? `<button type="button" class="btn perigo" data-perigo style="margin-right:auto">${esc(perigo.texto)}</button>` : ''}
-      <button type="button" class="btn" data-fechar>Cancelar</button>
+      <button type="button" class="btn" data-fechar>${esc(cancelar)}</button>
       ${aoSalvar ? `<button type="submit" class="btn primario" data-salvar>${esc(salvar)}</button>` : ''}
     </div></form>`;
   document.body.appendChild(d);
@@ -302,6 +304,10 @@ document.addEventListener('click', (ev) => {
   instrumento = b.dataset.instr;
   try { localStorage.setItem('instrumento', instrumento); } catch { /* ignora */ }
   document.querySelectorAll('[data-diag]').forEach((d) => aplicarInstrumento(d));
+  // No dicionário do acorde, as variações mudam de desenho conforme o instrumento
+  const dlg = b.closest('dialog.dlg-acorde');
+  const w = dlg?.querySelector('[data-acorde-atual]');
+  if (w) abrirAcorde(w.dataset.acordeAtual, w.dataset.anterior || null, dlg);
 });
 function aplicarInstrumento(d) {
   d.querySelectorAll('[data-instr]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.instr === instrumento)));
@@ -668,7 +674,7 @@ function dlgNovoEvento() {
 // Repertório do dia
 function blocoCampo(tom) {
   const ch = campoHarmonico(tom);
-  return ch.length ? `<div class="campo-harmonico" aria-label="Campo harmônico de ${esc(tom)}">${ch.map((x) => `<div><small>${x.grau}</small><strong>${esc(x.acorde)}</strong></div>`).join('')}</div>` : '';
+  return ch.length ? `<div class="campo-harmonico" aria-label="Campo harmônico de ${esc(tom)}">${ch.map((x) => `<button type="button" class="celula-campo" data-acorde="${esc(x.acorde)}" aria-label="Ver acorde ${esc(x.acorde)}"><small>${x.grau}</small><strong>${esc(x.acorde)}</strong></button>`).join('')}</div>` : '';
 }
 // Acordes para os diagramas: campo harmônico + acordes da progressão fora do campo
 function acordesParaDiagrama(tom, progressao) {
@@ -683,7 +689,7 @@ function blocoDiagramas(tom, capo, progressao) {
   const acordes = acordesParaDiagrama(tom, progressao);
   if (!acordes.length) return '';
   const soaDe = (real) => (capo ? ` · soa ${esc(real)}` : '');
-  const fig = (nome, p, sub, nivel, facil, extra = '') => `<figure class="diag${extra}"><figcaption><strong>${esc(nome)}</strong>${sub ? `<small>${sub}</small>` : ''}</figcaption>${desenharBraco(p, nome)}<small class="nivel${facil ? ' facil' : ''}">${nivel}</small></figure>`;
+  const fig = (nome, p, sub, nivel, facil, extra = '') => `<figure class="diag${extra}" data-acorde="${esc(nome)}" role="button" tabindex="0" aria-label="Ver posições de ${esc(nome)}"><figcaption><strong>${esc(nome)}</strong>${sub ? `<small>${sub}</small>` : ''}</figcaption>${desenharBraco(p, nome)}<small class="nivel${facil ? ' facil' : ''}">${nivel}</small></figure>`;
   const formas = acordes.map((real) => ({ real, forma: capo ? transporAcorde(real, -capo) : real }));
   // Padrão: formas tradicionais, como na maioria das cifras
   const padraoHtml = formas.map(({ real, forma }) => {
@@ -700,13 +706,70 @@ function blocoDiagramas(tom, capo, progressao) {
   const violao = `<div class="seg seg-modo" role="group" aria-label="Formas no violão"><button type="button" data-modo-btn="padrao" aria-pressed="${modoViolao === 'padrao'}">Padrão</button><button type="button" data-modo-btn="sem-pestana" aria-pressed="${modoViolao === 'sem-pestana'}">Sem pestana</button></div>
     <div class="grade-diag" data-modo="padrao" ${modoViolao === 'padrao' ? '' : 'hidden'}>${padraoHtml}</div>
     <div class="grade-diag" data-modo="sem-pestana" ${modoViolao === 'sem-pestana' ? '' : 'hidden'}>${semPestanaHtml}</div>`;
-  const teclado = acordes.map((a) => `<figure class="diag tecla"><figcaption><strong>${esc(a)}</strong></figcaption>${svgTeclado(a)}<small class="nivel facil">${nomesNotas(a).join(' · ')}</small></figure>`).join('');
+  const teclado = acordes.map((a) => `<figure class="diag tecla" data-acorde="${esc(a)}" role="button" tabindex="0" aria-label="Ver acorde ${esc(a)}"><figcaption><strong>${esc(a)}</strong></figcaption>${svgTeclado(a)}<small class="nivel facil">${nomesNotas(a).join(' · ')}</small></figure>`).join('');
   return `<div class="diagramas" data-diag>
     <div class="seg" role="group" aria-label="Instrumento"><button type="button" data-instr="violao" aria-pressed="${instrumento === 'violao'}">Violão${capo ? ` (capo ${capo}ª)` : ''}</button><button type="button" data-instr="teclado" aria-pressed="${instrumento === 'teclado'}">Teclado</button></div>
     <div data-painel="violao" ${instrumento === 'violao' ? '' : 'hidden'}>${violao}</div>
     <div class="grade-diag" data-painel="teclado" ${instrumento === 'teclado' ? '' : 'hidden'}>${teclado}</div>
   </div>`;
 }
+// Acordes de um trecho viram botões que abrem o dicionário do acorde
+function acordesClicaveis(texto) {
+  return texto.split(/(\s+)/).map((t) => (t.trim() && lerAcorde(t) ? `<button type="button" class="ac" data-acorde="${esc(t)}">${esc(t)}</button>` : esc(t))).join('');
+}
+// Dicionário do acorde: posições no violão, teclado e variações para usar no lugar
+function htmlAcorde(nome, anterior) {
+  const semPestana = modoViolao === 'sem-pestana';
+  const forma = (n) => {
+    const curada = semPestana ? posicaoViolao(n) : posicaoPadrao(n);
+    const ehTriade = curada && triade(n) === n.replace(/m\(b5\)$/, '°');
+    return ehTriade ? curada : melhorPosicao(n, semPestana);
+  };
+  const principal = forma(nome);
+  const alt = semPestana && principal?.alternativa ? principal.alternativa : null;
+  const chave = (p) => p.casas.join(',');
+  const outras = posicoesVariadas(nome, 8).filter((p) => !principal || chave(p) !== chave(principal)).slice(0, 6);
+  const cartao = (n, p, rot, extra = '') => `<figure class="diag${extra}"><figcaption><strong>${esc(n)}</strong></figcaption>${svgBraco(p, n)}<small class="nivel${p.pestana ? '' : ' facil'}">${rot}</small></figure>`;
+  const vars = variacoes(nome).slice(0, 8);
+  const notas = notasDoAcorde(nome);
+  const violao = `
+    <p class="pequeno suave" style="margin:0 0 6px">Posição ${semPestana ? 'mais fácil (sem pestana)' : 'padrão'}</p>
+    <div class="grade-diag">${principal ? cartao(nome, principal, principal.nivel === undefined ? rotuloPosicao(principal) : rotuloPosicao(principal)) : '<p class="suave">Posição não encontrada.</p>'}${alt ? `<figure class="diag" data-acorde="${esc(alt.nome)}" role="button" tabindex="0"><figcaption><strong>${esc(alt.nome)}</strong><small>troca sem pestana</small></figcaption>${svgBraco(alt, alt.nome)}<small class="nivel facil">sem pestana</small></figure>` : ''}</div>
+    ${outras.length ? `<p class="pequeno suave" style="margin:12px 0 6px">Outras posições no braço</p><div class="grade-diag">${outras.map((p) => cartao(nome, p, rotuloPosicao(p))).join('')}</div>` : ''}`;
+  const teclado = `<div class="teclado-grande">${svgTecladoAcorde(nome)}</div><p class="pequeno" style="margin:6px 0 0"><strong>Notas:</strong> ${esc(notas.join(' · '))}</p>`;
+  const variacoesHtml = vars.length ? `<p class="pequeno suave" style="margin:14px 0 6px">Variações para usar no lugar (toque para abrir)</p>
+    <div class="grade-diag">${vars.map((v) => { const p = forma(v); return p ? `<figure class="diag" data-acorde="${esc(v)}" role="button" tabindex="0" aria-label="Abrir ${esc(v)}"><figcaption><strong>${esc(v)}</strong><small>${esc(descreverQualidade(v))}</small></figcaption>${instrumento === 'teclado' ? svgTecladoAcorde(v) : svgBraco(p, v)}</figure>` : ''; }).join('')}</div>` : '';
+  return `<div data-diag data-acorde-atual="${esc(nome)}" data-anterior="${esc(anterior || '')}">
+    ${anterior ? `<button type="button" class="btn compacto" data-acorde="${esc(anterior)}" data-voltar-acorde style="margin-bottom:8px">← ${esc(anterior)}</button>` : ''}
+    <p class="pequeno" style="margin:0 0 10px">${esc(descreverQualidade(nome))}${notas.length ? ' · ' + esc(notas.join(' ')) : ''}</p>
+    <div class="seg" role="group" aria-label="Instrumento"><button type="button" data-instr="violao" aria-pressed="${instrumento === 'violao'}">Violão</button><button type="button" data-instr="teclado" aria-pressed="${instrumento === 'teclado'}">Teclado</button></div>
+    <div data-painel="violao" ${instrumento === 'violao' ? '' : 'hidden'}>${violao}</div>
+    <div data-painel="teclado" ${instrumento === 'teclado' ? '' : 'hidden'}>${teclado}</div>
+    ${variacoesHtml}
+  </div>`;
+}
+function abrirAcorde(nome, anterior = null, dlgAtual = null) {
+  if (!lerAcorde(nome)) return;
+  if (dlgAtual) {
+    dlgAtual.querySelector('.dlg-topo h2').textContent = nome;
+    dlgAtual.querySelector('.dlg-corpo').innerHTML = htmlAcorde(nome, anterior);
+    dlgAtual.querySelector('.dlg-corpo').scrollTop = 0; dlgAtual.scrollTop = 0;
+    return;
+  }
+  dialogo({ titulo: nome, corpo: htmlAcorde(nome), cancelar: 'Fechar', classe: 'dlg-acorde' });
+}
+function aoTocarAcorde(ev) {
+  const alvo = ev.target.closest('[data-acorde]');
+  if (!alvo || (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ')) return;
+  if (ev.type === 'keydown') ev.preventDefault();
+  const dlg = alvo.closest('dialog.dlg-acorde');
+  const atual = dlg?.querySelector('[data-acorde-atual]')?.dataset.acordeAtual;
+  const voltar = alvo.hasAttribute('data-voltar-acorde');
+  abrirAcorde(alvo.dataset.acorde, dlg && !voltar ? atual : null, dlg || null);
+}
+document.addEventListener('click', aoTocarAcorde);
+document.addEventListener('keydown', aoTocarAcorde);
+
 // Progressão em linhas (uma seção por linha), já no tom
 function blocoProgressao(progressao, tom, capo) {
   const real = transporProgressao(progressao, tom).split(/\n/);
@@ -715,7 +778,7 @@ function blocoProgressao(progressao, tom, capo) {
     const k = l.indexOf(':');
     const rot = k >= 0 ? l.slice(0, k) : '', ac = k >= 0 ? l.slice(k + 1) : l;
     const f = formas[i] ? formas[i].slice(formas[i].indexOf(':') + 1) : '';
-    return `<div>${rot ? `<span class="secao-prog">${esc(rot.trim())}</span>` : ''}<span class="acordes">${esc(ac.trim())}</span>${capo ? `<small class="suave">forma: ${esc(f.trim())}</small>` : ''}</div>`;
+    return `<div>${rot ? `<span class="secao-prog">${esc(rot.trim())}</span>` : ''}<span class="acordes">${acordesClicaveis(ac.trim())}</span>${capo ? `<small class="suave">forma: ${acordesClicaveis(f.trim())}</small>` : ''}</div>`;
   }).join('')}</div>`;
 }
 // Sugestões de capotraste para tocar sem pestana
