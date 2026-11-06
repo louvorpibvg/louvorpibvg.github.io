@@ -5,7 +5,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_CHAVE_PUBLICA } from './config.js';
 import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=7';
-import { lerAcorde, descreverQualidade, notasDoAcorde, posicoesVariadas, melhorPosicao, variacoes, svgBraco, rotuloPosicao, svgTecladoAcorde } from './acordes.js?v=7';
+import { lerAcorde, descreverQualidade, notasDoAcorde, posicoesVariadas, melhorPosicao, variacoes, svgBraco, rotuloPosicao, svgTecladoAcorde } from './acordes.js?v=8';
 import { posicaoViolao, posicaoPadrao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=7';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CHAVE_PUBLICA, {
