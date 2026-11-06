@@ -161,7 +161,8 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--verde); }
 .itens > li:first-child { border-top: 0; }
 .tom { display: inline-grid; place-items: center; min-width: 40px; height: 32px; padding: 0 8px; border-radius: 10px; background: var(--destaque-fundo); color: var(--verde-texto); font-weight: 700; }
 .campo-harmonico { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; text-align: center; margin-top: 8px; }
-.campo-harmonico div { border: 1px solid var(--borda); border-radius: 10px; padding: 6px 2px; }
+.campo-harmonico div, .celula-campo { border: 1px solid var(--borda); border-radius: 10px; padding: 6px 2px; }
+.celula-campo { background: var(--cartao); color: inherit; font: inherit; cursor: pointer; min-width: 0; min-height: 44px; }
 .campo-harmonico small { display: block; color: var(--texto-suave); font-size: 0.72rem; }
 .campo-harmonico strong { font-size: 0.92rem; }
 .links-externos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -305,4 +306,19 @@ details.cartao > summary { display: block; }
   .grade-diag { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
   .campo-harmonico { max-width: 640px; }
   dialog { width: min(640px, calc(100% - 48px)); }
+}
+
+/* Acordes clicáveis e dicionário do acorde */
+.ac { display: inline-block; border: 0; background: transparent; color: inherit; font: inherit; padding: 2px 3px; margin: 0 -1px; border-radius: 6px; cursor: pointer; text-decoration: underline dotted var(--texto-suave); text-underline-offset: 3px; }
+.ac:active, .celula-campo:active { background: var(--destaque-fundo); }
+.progressao small .ac { padding: 0 2px; }
+.diag[data-acorde] { cursor: pointer; }
+.diag[data-acorde]:active { background: var(--destaque-fundo); }
+:is(.ac, .celula-campo, .diag[data-acorde]):focus-visible { outline: 3px solid var(--verde); outline-offset: 2px; }
+.teclado-grande { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.teclado-grande svg { width: 100%; max-width: 520px; height: auto; }
+dialog.dlg-acorde .grade-diag { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+dialog.dlg-acorde .diag svg[aria-label^="Teclado"] { width: 100%; }
+@media (hover: hover) and (pointer: fine) {
+  .ac:hover, .celula-campo:hover, .diag[data-acorde]:hover { background: var(--destaque-fundo); }
 }
