@@ -4,9 +4,9 @@
 // =====================================================================
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_CHAVE_PUBLICA } from './config.js';
-import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=7';
+import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=8';
 import { lerAcorde, descreverQualidade, notasDoAcorde, posicoesVariadas, melhorPosicao, variacoes, svgBraco, rotuloPosicao, svgTecladoAcorde } from './acordes.js?v=9';
-import { posicaoViolao, posicaoPadrao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=7';
+import { posicaoViolao, posicaoPadrao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=8';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CHAVE_PUBLICA, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'louvor-pibvg-sessao' }
@@ -983,7 +983,7 @@ async function pgMusica(id) {
     const t = document.getElementById('tom-ch').value, capo = Number(document.getElementById('capo-ch').value);
     document.getElementById('sug').innerHTML = `<p class="pequeno suave" style="margin:4px 0 6px">Sugestões para tocar sem pestana:</p>${sugestoesCapo(t, m.progressao, capo)}`;
     document.getElementById('ch').innerHTML = blocoCampo(t) + (capo ? `<p class="pequeno" style="margin:10px 0 0"><strong>Formas com capo na ${capo}ª casa (forma de ${esc(formaComCapo(t, capo))}):</strong></p>${blocoCampo(formaComCapo(t, capo))}` : '');
-    document.getElementById('prog').innerHTML = m.progressao ? `<p class="pequeno" style="margin:12px 0 0"><strong>Progressão em ${esc(t)}</strong> <span class="suave">· graus: ${esc(m.progressao.replace(/\n/g, ' / '))}</span></p>${blocoProgressao(m.progressao, t, capo)}`
+    document.getElementById('prog').innerHTML = m.progressao ? `<p class="pequeno" style="margin:12px 0 0"><strong>Progressão em ${esc(t)}</strong> <span class="suave">· graus: ${esc(m.progressao.replace(/maj7/g, '7M').replace(/\n/g, ' / '))}</span></p>${blocoProgressao(m.progressao, t, capo)}`
       : `<p class="pequeno suave" style="margin:12px 0 0">A progressão ainda não foi cadastrada.${sou.lider() ? ' Toque em Editar para adicionar.' : ''}</p>`;
     document.getElementById('diag').innerHTML = blocoDiagramas(t, capo, m.progressao);
   };
@@ -1023,7 +1023,7 @@ function dlgMusica(m) {
       // Começa mostrando a progressão salva em acordes do tom original (ou em graus, se não houver tom)
       if (m?.progressao) {
         if (m.tom_original) ta.value = transporProgressao(m.progressao, m.tom_original);
-        else { f.modo.value = 'graus'; ta.value = m.progressao; }
+        else { f.modo.value = 'graus'; ta.value = m.progressao.replace(/maj7/g, '7M'); }
       }
       const inserir = (txt) => {
         const ini = ta.selectionStart ?? ta.value.length, fim = ta.selectionEnd ?? ta.value.length;

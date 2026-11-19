@@ -29,7 +29,7 @@ export function campoHarmonico(tom) {
 // Converte "I – V – vi – IV" no tom escolhido. Mantém o que não reconhecer.
 // Aceita várias linhas ("Verso: I V vi IV") e baixo invertido ("I/III").
 const ROMANOS = { I: 0, II: 1, III: 2, IV: 3, V: 4, VI: 5, VII: 6 };
-const RE_GRAU = /(^|[^A-Za-z0-9])(b|#)?(VII|VI|IV|V|III|II|I|vii|vi|iv|v|iii|ii|i)(°|ø|maj7|7|sus4|sus2|add9|9|6)?(?![A-Za-z0-9])/g;
+const RE_GRAU = /(^|[^A-Za-z0-9])(b|#)?(VII|VI|IV|V|III|II|I|vii|vi|iv|v|iii|ii|i)(°|ø|maj7|7M|7|sus4|sus2|add9|9|6)?(?![A-Za-z0-9])/g;
 export function transporProgressao(texto, tom) {
   const a = analisar(tom);
   if (!a || !texto) return '';
@@ -43,7 +43,7 @@ export function transporProgressao(texto, tom) {
     let sufixo = menor ? 'm' : '';
     if (ext === '°') sufixo = 'm(b5)';
     else if (ext === 'ø') sufixo = 'm7(b5)';
-    else if (ext === 'maj7') sufixo += '7M';
+    else if (ext === 'maj7' || ext === '7M') sufixo += '7M';
     else if (ext) sufixo += ext;
     return antes + raiz + sufixo;
   });
@@ -80,7 +80,7 @@ export function acordesParaGraus(texto, tom) {
       const menor = /^m(?!aj)|^°|^dim/.test(suf);
       let g = grauDe(raiz, a);
       g = g.replace(/[IV]+/, (r) => (menor ? r.toLowerCase() : r));
-      const ext = { 'm7(b5)': 'ø', 'm(b5)': '°', '°': '°', dim: '°', m: '', m7: '7', m6: '6', '7M': 'maj7', maj7: 'maj7', 7: '7', 6: '6',
+      const ext = { 'm7(b5)': 'ø', 'm(b5)': '°', '°': '°', dim: '°', m: '', m7: '7', m6: '6', '7M': '7M', maj7: '7M', 7: '7', 6: '6',
         sus4: 'sus4', 4: 'sus4', sus2: 'sus2', 2: 'sus2', add9: 'add9', 9: '9' }[suf] ?? '';
       return ab + g + ext + (baixo ? '/' + grauDe(baixo, a) : '') + fe;
     }).join('');

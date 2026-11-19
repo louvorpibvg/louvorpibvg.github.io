@@ -49,7 +49,7 @@ O GitHub Pages guarda arquivos em cache por até 10 minutos. Toda vez que mudar 
    - mudou `estilo.css` → `app/index.html` (`estilo.css?v=N`)
    - mudou `app.js` → `app/index.html` (`app.js?v=N`)
    - mudou `musica.js`, `diagramas.js` ou `acordes.js` → os `import` em `app/app.js` (e `diagramas.js` importa `musica.js`; use o MESMO número nos dois lugares) e depois `app.js?v=N` no index.
-2. Versões atuais: `estilo.css?v=6`, `app.js?v=9`, `musica.js?v=7`, `diagramas.js?v=7`, `acordes.js?v=9`.
+2. Versões atuais: `estilo.css?v=7`, `app.js?v=10`, `musica.js?v=8`, `diagramas.js?v=8`, `acordes.js?v=9`.
 3. Faça o push de todos os arquivos juntos e só confira o site ao vivo depois de 1 a 2 minutos.
 
 Lição aprendida (06/11/2026): um arquivo novo chegou vazio ao GitHub e a plataforma travou em "Carregando…". Antes de publicar, confira `git diff --stat` e rode `node --check` nos arquivos JS.
@@ -72,7 +72,8 @@ Se possível, teste no navegador (Playwright ou servidor local `python3 -m http.
 ## Convenções da parte musical
 - Progressões ficam salvas em graus (`Intro: I V vi IV`), uma seção por linha, e são transpostas na hora para o tom tocado. Com capotraste, mostra-se também a "forma".
 - Tons aceitos: maiores e menores com # ou b (`tomValido` em musica.js).
-- Violão: o modo padrão para o usuário é "Sem pestana" (o Pedro sente dor ao fazer pestana). Ordem de preferência: aberto → fechado sem pestana → pestana pequena → pestana completa, com substitutos (F→Fmaj7, F#m→F#m7, C#m→C#m7, B→B7, Bb→Bbmaj7).
+- Violão: o modo padrão para o usuário é "Sem pestana" (o Pedro sente dor ao fazer pestana). Ordem de preferência: aberto → fechado sem pestana → pestana pequena → pestana completa, com substitutos (F→F7M, F#m→F#m7, C#m→C#m7, B→B7, Bb→Bb7M).
+- Cifra brasileira na tela: sétima maior é sempre `7M` (F7M, VI7M), nunca a forma americana `maj7`. O sistema ainda ACEITA `maj7` digitado ou já salvo no banco, mas sempre MOSTRA `7M`.
 - Direitos autorais: guardar só acordes e links. Nunca copiar letras ou cifras completas para o banco ou o repositório.
 
 ## Segurança e privacidade (LGPD)

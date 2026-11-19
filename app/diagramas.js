@@ -1,7 +1,7 @@
 // Diagramas de acordes (violão e teclado) em SVG.
 // Violão: prioriza formas abertas e sem pestana (pedido do Pedro, por dor na mão).
 // Níveis: 0 = aberto · 1 = fechado sem pestana · 2 = pestana pequena · 3 = pestana completa.
-import { campoHarmonico, formaComCapo } from './musica.js?v=7';
+import { campoHarmonico, formaComCapo } from './musica.js?v=8';
 
 const NOTAS = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
 const SUST = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -44,11 +44,11 @@ const CURADOS = {
 };
 // Alternativas sem pestana que mudam levemente o acorde (aceitas na maioria das músicas)
 const ALTERNATIVAS = {
-  'maior:5': { nome: 'Fmaj7', casas: [-1, -1, 3, 2, 1, 0], nivel: 0 },
+  'maior:5': { nome: 'F7M', casas: [-1, -1, 3, 2, 1, 0], nivel: 0 },
   'maior:11': { nome: 'B7', casas: [-1, 2, 1, 2, 0, 2], nivel: 0 },
   'menor:6': { nome: 'F#m7', casas: [2, 0, 2, 2, 2, 0], nivel: 0 },
   'menor:1': { nome: 'C#m7', casas: [-1, 4, 2, 1, 0, 0], nivel: 1 },
-  'maior:10': { nome: 'Bbmaj7', casas: [-1, 1, 3, 2, 3, -1], nivel: 1 },
+  'maior:10': { nome: 'Bb7M', casas: [-1, 1, 3, 2, 3, -1], nivel: 1 },
 };
 
 function candidatos(raiz, tipo) {

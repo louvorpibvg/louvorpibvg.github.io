@@ -236,7 +236,7 @@ dialog .dlg-acoes { position: sticky; bottom: 0; display: flex; gap: 8px; justif
 .grade-diag[data-painel=teclado] { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
 .progressao { display: grid; gap: 6px; margin-top: 6px; }
 .progressao > div { border-left: 3px solid var(--verde); padding: 2px 0 2px 10px; }
-.progressao .secao-prog { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-suave); font-weight: 600; }
+.progressao .secao-prog { display: block; font-size: .8rem; line-height: 1.3; text-transform: uppercase; letter-spacing: .04em; color: var(--verde-texto); font-weight: 700; }
 .progressao .acordes { font: 600 1rem var(--f-titulo); word-spacing: .35em; overflow-wrap: anywhere; }
 .progressao small { display: block; font-size: .75rem; }
 .sugestoes-capo { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
