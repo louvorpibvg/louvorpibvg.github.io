@@ -1,0 +1,7 @@
+# Dados pessoais e materiais internos: NUNCA publicar (o repositório é público)
+_privado/
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+# Configurações locais do Claude Code
+.claude/settings.local.json
