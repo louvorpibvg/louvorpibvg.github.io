@@ -1,16 +1,23 @@
-# Faz uma consulta simples ao banco todo dia para o Supabase (plano gratuito)
+# Faz consultas simples ao banco duas vezes por dia para o Supabase (plano gratuito)
 # não pausar o projeto por inatividade. Usa só a chave pública (publishable).
+# Se falhar, o GitHub manda e-mail para a conta louvorpibvg: confira o painel do Supabase.
 name: Manter Supabase ativo
 on:
   schedule:
     - cron: '17 11 * * *'   # todo dia às 08:17 (horário de Brasília)
+    - cron: '47 23 * * *'   # todo dia às 20:47 (horário de Brasília)
   workflow_dispatch:
 jobs:
   ping:
     runs-on: ubuntu-latest
+    env:
+      URL: https://hpvbnhihawrqvjbnqomb.supabase.co
+      CHAVE: sb_publishable_62Bd_Z9tw5O1eTJ2DaMHSQ_RM5tZ_sj
     steps:
-      - name: Consultar o banco
+      - name: Consultar o banco (função ping)
         run: |
-          curl -sf -X POST "https://hpvbnhihawrqvjbnqomb.supabase.co/rest/v1/rpc/ping" \
-            -H "apikey: sb_publishable_62Bd_Z9tw5O1eTJ2DaMHSQ_RM5tZ_sj" \
-            -H "Content-Type: application/json" -d '{}'
+          curl -sf --retry 3 --retry-delay 20 --retry-all-errors -X POST "$URL/rest/v1/rpc/ping" \
+            -H "apikey: $CHAVE" -H "Content-Type: application/json" -d '{}'
+      - name: Consultar o serviço de login
+        run: |
+          curl -sf --retry 3 --retry-delay 20 --retry-all-errors "$URL/auth/v1/health" -H "apikey: $CHAVE"
