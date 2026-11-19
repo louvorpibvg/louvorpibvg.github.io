@@ -49,7 +49,7 @@ O GitHub Pages guarda arquivos em cache por até 10 minutos. Toda vez que mudar 
    - mudou `estilo.css` → `app/index.html` (`estilo.css?v=N`)
    - mudou `app.js` → `app/index.html` (`app.js?v=N`)
    - mudou `musica.js`, `diagramas.js` ou `acordes.js` → os `import` em `app/app.js` (e `diagramas.js` importa `musica.js`; use o MESMO número nos dois lugares) e depois `app.js?v=N` no index.
-2. Versões atuais: `estilo.css?v=7`, `app.js?v=11`, `musica.js?v=9`, `diagramas.js?v=8`, `acordes.js?v=10`.
+2. Versões atuais: `estilo.css?v=8`, `app.js?v=11`, `musica.js?v=9`, `diagramas.js?v=8`, `acordes.js?v=10`.
 3. Faça o push de todos os arquivos juntos e só confira o site ao vivo depois de 1 a 2 minutos.
 
 Lição aprendida (06/11/2026): um arquivo novo chegou vazio ao GitHub e a plataforma travou em "Carregando…". Antes de publicar, confira `git diff --stat` e rode `node --check` nos arquivos JS.
