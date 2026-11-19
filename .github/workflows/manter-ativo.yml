@@ -14,9 +14,9 @@ jobs:
       URL: https://hpvbnhihawrqvjbnqomb.supabase.co
       CHAVE: sb_publishable_62Bd_Z9tw5O1eTJ2DaMHSQ_RM5tZ_sj
     steps:
-      - name: Consultar o banco (função ping)
+      - name: Ler uma tabela do banco (função manter_ativo, migração 05)
         run: |
-          curl -sf --retry 3 --retry-delay 20 --retry-all-errors -X POST "$URL/rest/v1/rpc/ping" \
+          curl -sf --retry 3 --retry-delay 20 --retry-all-errors -X POST "$URL/rest/v1/rpc/manter_ativo" \
             -H "apikey: $CHAVE" -H "Content-Type: application/json" -d '{}'
       - name: Consultar o serviço de login
         run: |
