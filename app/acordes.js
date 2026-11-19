@@ -183,8 +183,8 @@ export function variacoes(nome) {
   const dim = ['°', 'm7(b5)'].includes(a.qual);
   let lista;
   if (dim) lista = [r + '°', r + 'm7(b5)'];
-  else if (menor) lista = [r + 'm', r + 'm7', r + 'm(add9)', r + 'm7(9)', r + 'sus2', r + 'sus4', r + 'm6', r + 'm/' + terca(3)];
-  else lista = [r, r + 'add9', r + 'sus2', r + 'sus4', r + '7M', r + '6', r + '7', r + '/' + terca(4)];
+  else if (menor) lista = [r + 'm', r + 'm7', r + 'm(add9)', r + 'm7(9)', r + '2', r + '4', r + 'm6', r + 'm/' + terca(3)];
+  else lista = [r, r + 'add9', r + '2', r + '4', r + '7M', r + '6', r + '7', r + '/' + terca(4)];
   return lista.map((n) => (b && !n.includes('/') ? n + b : n)).filter((n) => n !== nome && lerAcorde(n) && posicoes(n).length);
 }
 

@@ -4,8 +4,8 @@
 // =====================================================================
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_CHAVE_PUBLICA } from './config.js';
-import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=8';
-import { lerAcorde, descreverQualidade, notasDoAcorde, posicoesVariadas, melhorPosicao, variacoes, svgBraco, rotuloPosicao, svgTecladoAcorde } from './acordes.js?v=9';
+import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=9';
+import { lerAcorde, descreverQualidade, notasDoAcorde, posicoesVariadas, melhorPosicao, variacoes, svgBraco, rotuloPosicao, svgTecladoAcorde } from './acordes.js?v=10';
 import { posicaoViolao, posicaoPadrao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=8';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CHAVE_PUBLICA, {
@@ -771,14 +771,18 @@ document.addEventListener('click', aoTocarAcorde);
 document.addEventListener('keydown', aoTocarAcorde);
 
 // Progressão em linhas (uma seção por linha), já no tom
-function blocoProgressao(progressao, tom, capo) {
+// Graus na cifra brasileira (o banco pode ter maj7/sus4 salvos): VI7M, VII4, II2
+const grausBR = (s) => (s || '').replace(/maj7/g, '7M').replace(/sus4/g, '4').replace(/sus2/g, '2');
+function blocoProgressao(progressao, tom, capo, comGraus = false) {
   const real = transporProgressao(progressao, tom).split(/\n/);
   const formas = capo ? transporProgressao(progressao, formaComCapo(tom, capo)).split(/\n/) : [];
+  const graus = progressao.split(/\n/);
+  const semRotulo = (l) => (l && l.indexOf(':') >= 0 ? l.slice(l.indexOf(':') + 1) : l || '').trim();
   return `<div class="progressao">${real.map((l, i) => {
     const k = l.indexOf(':');
     const rot = k >= 0 ? l.slice(0, k) : '', ac = k >= 0 ? l.slice(k + 1) : l;
     const f = formas[i] ? formas[i].slice(formas[i].indexOf(':') + 1) : '';
-    return `<div>${rot ? `<span class="secao-prog">${esc(rot.trim())}</span>` : ''}<span class="acordes">${acordesClicaveis(ac.trim())}</span>${capo ? `<small class="suave">forma: ${acordesClicaveis(f.trim())}</small>` : ''}</div>`;
+    return `<div>${rot ? `<span class="secao-prog">${esc(rot.trim())}</span>` : ''}<span class="acordes">${acordesClicaveis(ac.trim())}</span>${capo ? `<small class="suave">forma: ${acordesClicaveis(f.trim())}</small>` : ''}${comGraus ? `<small class="suave graus-prog">graus: ${esc(grausBR(semRotulo(graus[i])))}</small>` : ''}</div>`;
   }).join('')}</div>`;
 }
 // Sugestões de capotraste para tocar sem pestana
@@ -983,7 +987,7 @@ async function pgMusica(id) {
     const t = document.getElementById('tom-ch').value, capo = Number(document.getElementById('capo-ch').value);
     document.getElementById('sug').innerHTML = `<p class="pequeno suave" style="margin:4px 0 6px">Sugestões para tocar sem pestana:</p>${sugestoesCapo(t, m.progressao, capo)}`;
     document.getElementById('ch').innerHTML = blocoCampo(t) + (capo ? `<p class="pequeno" style="margin:10px 0 0"><strong>Formas com capo na ${capo}ª casa (forma de ${esc(formaComCapo(t, capo))}):</strong></p>${blocoCampo(formaComCapo(t, capo))}` : '');
-    document.getElementById('prog').innerHTML = m.progressao ? `<p class="pequeno" style="margin:12px 0 0"><strong>Progressão em ${esc(t)}</strong> <span class="suave">· graus: ${esc(m.progressao.replace(/maj7/g, '7M').replace(/\n/g, ' / '))}</span></p>${blocoProgressao(m.progressao, t, capo)}`
+    document.getElementById('prog').innerHTML = m.progressao ? `<p class="pequeno" style="margin:12px 0 0"><strong>Progressão em ${esc(t)}</strong></p>${blocoProgressao(m.progressao, t, capo, true)}`
       : `<p class="pequeno suave" style="margin:12px 0 0">A progressão ainda não foi cadastrada.${sou.lider() ? ' Toque em Editar para adicionar.' : ''}</p>`;
     document.getElementById('diag').innerHTML = blocoDiagramas(t, capo, m.progressao);
   };
@@ -1023,7 +1027,7 @@ function dlgMusica(m) {
       // Começa mostrando a progressão salva em acordes do tom original (ou em graus, se não houver tom)
       if (m?.progressao) {
         if (m.tom_original) ta.value = transporProgressao(m.progressao, m.tom_original);
-        else { f.modo.value = 'graus'; ta.value = m.progressao.replace(/maj7/g, '7M'); }
+        else { f.modo.value = 'graus'; ta.value = grausBR(m.progressao); }
       }
       const inserir = (txt) => {
         const ini = ta.selectionStart ?? ta.value.length, fim = ta.selectionEnd ?? ta.value.length;
