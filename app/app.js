@@ -5,7 +5,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_CHAVE_PUBLICA } from './config.js';
 import { TONS, campoHarmonico, transporProgressao, tomValido, formaComCapo, acordesParaGraus, acordesDoTexto } from './musica.js?v=7';
-import { lerAcorde, descreverQualidade, notasDoAcorde, posicoesVariadas, melhorPosicao, variacoes, svgBraco, rotuloPosicao, svgTecladoAcorde } from './acordes.js?v=8';
+import { lerAcorde, descreverQualidade, notasDoAcorde, posicoesVariadas, melhorPosicao, variacoes, svgBraco, rotuloPosicao, svgTecladoAcorde } from './acordes.js?v=9';
 import { posicaoViolao, posicaoPadrao, desenharBraco, descricao, svgTeclado, nomesNotas, transporAcorde, triade, sugerirCapo } from './diagramas.js?v=7';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CHAVE_PUBLICA, {
@@ -946,7 +946,10 @@ async function pgMusica(id) {
   if (!m) { location.hash = '#/repertorio'; return; }
   carregando('repertorio');
   const historico = ordenar(await exec(sb.from('repertorio_itens').select('tom_previsto,tom_tocado,ministro_id,programacoes(id,data)').eq('musica_id', id)), (h) => h.programacoes?.data || '').reverse();
-  const tomInicial = m.tom_original || 'C';
+  // Sem tom original: usa o último tom tocado; senão, Am se a progressão está em tom menor (tônica "i"), ou C.
+  const ultimoTom = historico.map((h) => h.tom_tocado || h.tom_previsto).find((t) => tomValido(t || ''));
+  const progMenor = /(^|[\s:(])i(?![A-Za-z])/m.test(m.progressao || '') && !/(^|[\s:(])I(?![A-Za-z])/m.test(m.progressao || '');
+  const tomInicial = m.tom_original || ultimoTom || (progMenor ? 'Am' : 'C');
   moldura('repertorio', `
     <div class="entre"><div><h1>${esc(m.titulo)}</h1><p class="suave" style="margin:2px 0 0">${esc(m.artista || 'Artista não informado')}</p></div>
       ${sou.lider() ? '<button class="btn compacto" id="editar">Editar</button>' : ''}</div>

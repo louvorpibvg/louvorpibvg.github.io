@@ -53,14 +53,27 @@ export function lerAcorde(nome) {
 }
 export const descreverQualidade = (nome) => lerAcorde(nome)?.def.nome || '';
 
+// Grafia das notas pela teoria: cada intervalo usa a letra certa a partir da tônica
+// (Cm = C Eb G, e não C D# G). Se precisar de dobrado bemol/sustenido, usa a grafia simples.
+const LETRAS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const NATURAL = [0, 2, 4, 5, 7, 9, 11];
+const PASSO_LETRA = { 0: 0, 2: 1, 3: 2, 4: 2, 5: 3, 6: 4, 7: 4, 8: 4, 9: 5, 10: 6, 11: 6 };
 const bemol = (nomeRaiz) => nomeRaiz.includes('b') || nomeRaiz === 'F';
+function grafar(a, intervalo) {
+  const pc = (a.raiz + intervalo) % 12;
+  const letra = (LETRAS.indexOf(a.nomeRaiz[0]) + PASSO_LETRA[intervalo]) % 7;
+  const dif = ((pc - NATURAL[letra] + 18) % 12) - 6; // -6..5
+  if (dif === 0) return LETRAS[letra];
+  if (dif === 1) return LETRAS[letra] + '#';
+  if (dif === -1) return LETRAS[letra] + 'b';
+  return (bemol(a.nomeRaiz) ? BEM : SUST)[pc];
+}
 export function notasDoAcorde(nome) {
   const a = lerAcorde(nome);
   if (!a) return [];
   const ints = [...new Set([...a.def.req, ...a.def.opt])].sort((x, y) => x - y);
-  const nomes = bemol(a.nomeRaiz) ? BEM : SUST;
-  const lista = ints.map((i) => nomes[(a.raiz + i) % 12]);
-  if (a.nomeBaixo && !lista.includes(a.nomeBaixo)) lista.unshift(a.nomeBaixo);
+  const lista = ints.map((i) => grafar(a, i));
+  if (a.nomeBaixo && !ints.some((i) => (a.raiz + i) % 12 === a.baixo)) lista.unshift(a.nomeBaixo);
   return lista;
 }
 
