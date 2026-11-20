@@ -79,6 +79,10 @@ const ICONES = {
   mais: '<path d="M12 5v14M5 12h14"/>',
   voltar: '<path d="m15 18-6-6 6-6"/>',
   externo: '<path d="M7 17 17 7M9 7h8v8"/>',
+  tocar: '<path d="M7 4v16l13-8z"/>',
+  fechar: '<path d="M6 6l12 12M18 6 6 18"/>',
+  avancar: '<path d="m9 18 6-6-6-6"/>',
+  sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
 };
 const icone = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[n]}</svg>`;
 
@@ -267,9 +271,11 @@ function carregando(aba) { moldura(aba, '<div class="carregando" role="status"><
 
 async function rotear() {
   if (!E.eu) return;
-  const [rota, id] = location.hash.replace(/^#\/?/, '').split('/');
+  const [rota, id, n] = location.hash.replace(/^#\/?/, '').split('/');
+  if (rota !== 'culto') sairModoCulto();
   try {
     switch (rota) {
+      case 'culto': return await pgCulto(id, Number(n) || 1);
       case 'escalas': return await pgEscalas();
       case 'programacao': return await pgProgramacao(id);
       case 'repertorio': return pgRepertorio();
@@ -441,6 +447,7 @@ async function pgProgramacao(id) {
     <div class="secao"><h2>Escala</h2>${sou.lider() ? '<button class="btn compacto" id="add-culto">+ Horário</button>' : ''}</div>
     ${grupos.map((g) => blocoGrupo(p, g)).join('') || '<div class="cartao vazio">Nenhum horário cadastrado.</div>'}
     <div class="secao"><h2>Repertório do dia</h2>${podeRepertorio ? '<button class="btn compacto" id="add-musica">+ Música</button>' : ''}</div>
+    ${p.repertorio_itens.length ? `<a class="btn primario bloco btn-culto" href="#/culto/${p.id}/1">${icone('tocar')} Modo culto · tocar as ${p.repertorio_itens.length} músicas</a>` : ''}
     <div class="cartao">
       <div class="entre"><div><strong>Lista do Cifra Club</strong><div class="pequeno suave">${p.link_cifraclub ? 'Definida pelo ministro' : 'Ainda não informada'}</div></div>
         <div class="linha">${p.link_cifraclub ? `<a class="btn compacto" href="${esc(p.link_cifraclub)}" target="_blank" rel="noopener">Abrir ${icone('externo')}</a>` : ''}
@@ -759,7 +766,7 @@ function abrirAcorde(nome, anterior = null, dlgAtual = null) {
   dialogo({ titulo: nome, corpo: htmlAcorde(nome), cancelar: 'Fechar', classe: 'dlg-acorde' });
 }
 function aoTocarAcorde(ev) {
-  const alvo = ev.target.closest('[data-acorde]');
+  const alvo = ev.target.closest?.('[data-acorde]');
   if (!alvo || (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ')) return;
   if (ev.type === 'keydown') ev.preventDefault();
   const dlg = alvo.closest('dialog.dlg-acorde');
@@ -826,6 +833,100 @@ function itemRepertorio(it, i, p, pode) {
         ${i < p.repertorio_itens.length - 1 ? `<button class="btn compacto" data-mover="${it.id}" data-dir="1" aria-label="Descer">↓</button>` : ''}` : ''}
     </div></li>`;
 }
+// ---------------------------------------------------------------- modo culto
+// Tela cheia para tocar: uma música por vez, acordes grandes, tela acesa.
+// Rota #/culto/<programação>/<n>. Pedais de virar página (setas/PageDown/espaço) também funcionam.
+const culto = { p: null, travaTela: null, tamanho: 1 };
+try { culto.tamanho = Number(localStorage.getItem('tamanhoCulto')) || 1; } catch { /* sem armazenamento */ }
+async function manterTelaAcesa() {
+  try {
+    if (!('wakeLock' in navigator) || document.visibilityState !== 'visible' || culto.travaTela) return;
+    culto.travaTela = await navigator.wakeLock.request('screen');
+    culto.travaTela.addEventListener('release', () => { culto.travaTela = null; marcarTela(); });
+  } catch { culto.travaTela = null; }
+  marcarTela();
+}
+function marcarTela() {
+  const el = document.getElementById('tela-acesa');
+  if (!el) return;
+  el.hidden = !('wakeLock' in navigator);
+  el.setAttribute('aria-pressed', String(!!culto.travaTela));
+  el.title = culto.travaTela ? 'Tela ficará acesa' : 'Toque para manter a tela acesa';
+}
+function sairModoCulto() {
+  document.body.classList.remove('em-culto');
+  culto.travaTela?.release().catch(() => {});
+  culto.travaTela = null;
+  culto.p = null; // ao voltar, busca o repertório atualizado
+}
+document.addEventListener('visibilitychange', () => { if (document.body.classList.contains('em-culto')) manterTelaAcesa(); });
+document.addEventListener('keydown', (ev) => {
+  if (!document.body.classList.contains('em-culto') || document.querySelector('dialog[open]')) return;
+  if (['ArrowRight', 'PageDown'].includes(ev.key) || (ev.key === ' ' && !ev.target.closest?.('button,a'))) { ev.preventDefault(); document.getElementById('culto-prox')?.click(); }
+  if (['ArrowLeft', 'PageUp'].includes(ev.key)) { ev.preventDefault(); document.getElementById('culto-ant')?.click(); }
+  if (ev.key === 'Escape') document.getElementById('culto-sair')?.click();
+});
+
+async function pgCulto(id, n) {
+  if (!culto.p || culto.p.id !== id) {
+    carregando('escalas');
+    culto.p = normalizar(await exec(sb.from('programacoes').select(SELECT_PROG).eq('id', id).single()));
+  }
+  const p = culto.p, itens = p.repertorio_itens, total = itens.length;
+  if (!total) { location.hash = `#/programacao/${id}`; return; }
+  n = Math.min(Math.max(1, n), total);
+  const it = itens[n - 1];
+  const m = porId(E.musicas, it.musica_id) || { titulo: '(música removida)' };
+  const tom = it.tom_tocado || it.tom_previsto || m.tom_original;
+  const prox = itens[n] ? porId(E.musicas, itens[n].musica_id) : null;
+  const forma = it.capo && tom ? formaComCapo(tom, it.capo) : '';
+  document.body.classList.add('em-culto');
+  app.innerHTML = `
+    <div class="modo-culto" style="--tam-culto:${culto.tamanho}">
+      <header class="culto-topo">
+        <a class="btn btn-icone" id="culto-sair" href="#/programacao/${p.id}" aria-label="Sair do modo culto">${icone('fechar')}</a>
+        <div class="culto-titulo">
+          <small>${n} de ${total} · ${dataBR(p.data)}</small>
+          <h1>${esc(m.titulo)}</h1>
+        </div>
+        <button type="button" class="btn btn-icone" id="tela-acesa" aria-pressed="false" aria-label="Manter a tela acesa" hidden>${icone('sol')}</button>
+      </header>
+      <main class="culto-corpo" id="conteudo">
+        <div class="culto-info">
+          ${tom ? `<span class="tom tom-grande">${esc(tom)}</span>` : '<span class="etiqueta neutra">Tom não definido</span>'}
+          ${forma ? `<span class="etiqueta">Capo ${it.capo}ª · forma de ${esc(forma)}</span>` : ''}
+          ${m.artista ? `<span class="suave pequeno">${esc(m.artista)}</span>` : ''}
+          ${it.ministro_id ? `<span class="suave pequeno">· ${esc(nomeIntegrante(it.ministro_id))}</span>` : ''}
+        </div>
+        ${it.observacoes ? `<p class="culto-obs">${esc(it.observacoes)}</p>` : ''}
+        ${tom && m.progressao ? blocoProgressao(m.progressao, tom, it.capo)
+          : `<div class="cartao vazio">${tom ? 'A progressão desta música ainda não foi cadastrada.' : 'Defina o tom no repertório para ver os acordes.'}</div>`}
+        <div class="linha culto-ferramentas">
+          ${m.link_cifraclub ? `<a class="btn compacto" href="${esc(m.link_cifraclub)}" target="_blank" rel="noopener">Cifra ${icone('externo')}</a>` : ''}
+          <span class="seg" role="group" aria-label="Tamanho dos acordes">
+            <button type="button" data-tam="-1" aria-label="Diminuir acordes">A−</button>
+            <button type="button" data-tam="1" aria-label="Aumentar acordes">A+</button>
+          </span>
+        </div>
+      </main>
+      <nav class="culto-nav" aria-label="Músicas do repertório">
+        <a class="btn" id="culto-ant" href="#/culto/${p.id}/${n - 1}" ${n === 1 ? 'aria-disabled="true" tabindex="-1"' : ''} aria-label="Música anterior">${icone('voltar')}</a>
+        <a class="btn primario" id="culto-prox" href="#/culto/${p.id}/${n + 1}" ${n === total ? 'aria-disabled="true" tabindex="-1"' : ''}>
+          <span>${prox ? `<small>Próxima</small>${esc(prox.titulo)}` : 'Fim do repertório'}</span>${prox ? icone('avancar') : ''}</a>
+      </nav>
+    </div>`;
+  window.scrollTo(0, 0);
+  marcarTela();
+  manterTelaAcesa();
+  document.getElementById('tela-acesa').addEventListener('click', () => (culto.travaTela ? culto.travaTela.release() : manterTelaAcesa()));
+  app.querySelectorAll('[data-tam]').forEach((b) => b.addEventListener('click', () => {
+    culto.tamanho = Math.min(1.8, Math.max(0.8, Math.round((culto.tamanho + Number(b.dataset.tam) * 0.15) * 100) / 100));
+    try { localStorage.setItem('tamanhoCulto', String(culto.tamanho)); } catch { /* ignora */ }
+    app.querySelector('.modo-culto').style.setProperty('--tam-culto', culto.tamanho);
+  }));
+  app.querySelectorAll('.culto-nav [aria-disabled="true"]').forEach((a) => a.addEventListener('click', (ev) => ev.preventDefault()));
+}
+
 async function moverItem(p, id, dir) {
   const itens = [...p.repertorio_itens];
   const i = itens.findIndex((x) => x.id === id);

@@ -512,3 +512,56 @@ dialog::backdrop { background: rgba(10, 20, 26, .6); }
   .cartao.clicavel, .btn, .barra a { transition: none; }
   .cartao.clicavel:hover, .cartao.clicavel:active, .btn:active { transform: none; }
 }
+
+/* ==================================================================
+   MODO CULTO: tela cheia para tocar (uma música por vez)
+   ================================================================== */
+.btn-culto { min-height: 52px; margin-bottom: 12px; font-size: 1rem; }
+.modo-culto { --tam-culto: 1; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+.culto-topo {
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px;
+  padding: calc(8px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 8px calc(12px + env(safe-area-inset-left));
+  background: var(--grad-marca); color: #fff; box-shadow: 0 4px 16px rgba(20, 40, 50, .2);
+}
+.culto-topo .btn { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .25); color: #fff; box-shadow: none; flex: none; }
+.culto-topo .btn[aria-pressed="true"] { background: #FFD66B; border-color: #FFD66B; color: #3A2A00; }
+.culto-titulo { flex: 1; min-width: 0; }
+.culto-titulo small { display: block; font-size: .75rem; opacity: .85; }
+.culto-titulo h1 { color: #fff; font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; -webkit-background-clip: border-box; background-clip: border-box; }
+.culto-corpo {
+  flex: 1; width: 100%; max-width: 960px; margin: 0 auto;
+  padding: 14px calc(14px + env(safe-area-inset-right)) calc(110px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+}
+.culto-info { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.tom-grande { min-width: 52px; height: 40px; font-size: 1.15rem; border-radius: 12px; }
+.culto-obs { margin: 0 0 12px; padding: 8px 12px; border-radius: 10px; background: var(--alerta-fundo); color: var(--alerta); font-weight: 600; }
+.modo-culto .progressao { gap: 10px; }
+.modo-culto .progressao > div { padding: 10px 14px 10px 16px; }
+.modo-culto .progressao .secao-prog { font-size: calc(.85rem * var(--tam-culto)); }
+.modo-culto .progressao .acordes { font-size: calc(1.55rem * var(--tam-culto)); line-height: 1.35; word-spacing: .3em; }
+.modo-culto .progressao .ac { padding: 4px 4px; min-height: 40px; text-decoration: none; }
+.modo-culto .progressao small { font-size: calc(.85rem * var(--tam-culto)); }
+.culto-ferramentas { margin-top: 16px; }
+.culto-ferramentas .seg { margin: 0; }
+.culto-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; gap: 10px;
+  padding: 10px calc(12px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+  background: var(--cartao); box-shadow: 0 -6px 20px rgba(20, 40, 50, .14);
+}
+.culto-nav .btn { min-height: 60px; border-radius: 16px; }
+.culto-nav #culto-ant { flex: none; width: 72px; }
+.culto-nav #culto-prox { flex: 1; justify-content: space-between; text-align: left; padding: 0 18px; font-size: 1.05rem; min-width: 0; }
+.culto-nav #culto-prox span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.culto-nav #culto-prox small { display: block; font-size: .72rem; font-weight: 600; opacity: .85; }
+.culto-nav #culto-prox svg { width: 26px; height: 26px; flex: none; }
+.culto-nav [aria-disabled="true"] { opacity: .45; pointer-events: none; box-shadow: none; }
+body.em-culto .aviso-flutuante { bottom: calc(96px + env(safe-area-inset-bottom)); left: 50%; }
+@media (min-width: 1024px) {
+  .culto-nav { left: 50%; right: auto; transform: translateX(-50%); width: min(960px, calc(100% - 48px)); bottom: 16px; border-radius: 20px; }
+  .modo-culto .progressao .acordes { font-size: calc(1.8rem * var(--tam-culto)); }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .culto-topo { position: static; }
+  .culto-nav .btn { min-height: 48px; }
+  .culto-corpo { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
